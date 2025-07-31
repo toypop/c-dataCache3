@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Binance Crypto Ticker</title>
+    <style>
+        body {
+            background-color: blue;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .navbar {
+            background-color: #333;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .navbar select, .navbar button {
+            padding: 8px 12px;
+            border-radius: 5px;
+            border: none;
+            font-size: 1em;
+            cursor: pointer;
+        }
+        .ticker-display {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 5em;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+        }
+        #tickerList {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 80%;
+            max-width: 600px;
+        }
+        .single-ticker {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .kline-display {
+            font-size: 0.3em;
+            color: yellow;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div>
+            <label for="cryptoSelect">Ticker:</label>
+            <select id="cryptoSelect">
+                <!-- Opzioni ticker saranno popolate da JS -->
+            </select>
+            <button id="subscribeButton">Sottoscrivi</button>
+            <button id="unsubscribeButton">Disiscriviti</button>
+        </div>
+        <div>
+            <label for="klineIntervalSelect">Kline Interval:</label>
+            <select id="klineIntervalSelect">
+                <!-- Opzioni intervallo Kline saranno popolate da JS -->
+            </select>
+            <button id="showKlineButton">Mostra Kline</button>
+        </div>
+    </div>
+
+    <div class="ticker-display">
+        <div id="tickerList">
+            <span id="BTCUSDT_display" class="single-ticker">
+                <span>Loading BTCUSDT...</span>
+                <span id="BTCUSDT_kline_display" class="kline-display"></span>
+            </span>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/tickerHub")
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+        const klineIntervals = [
+            "OneMinute", "ThreeMinutes", "FiveMinutes", "FifteenMinutes",
+            "ThirtyMinutes", "OneHour", "TwoHour", "FourHour",
+            "SixHour", "EightHour", "TwelveHour", "OneDay",
+            "ThreeDay", "OneWeek", "OneMonth"
+        ];
+
+        function populateKlineIntervals() {
+            const select = document.getElementById('klineIntervalSelect');
+            klineIntervals.forEach(interval => {
+                const option = document.createElement('option');
+                option.value = interval;
+                option.innerText = interval.replace('Minute', 'm').replace('Hour', 'h').replace('Day', 'd').replace('ThreeDay', '3d').replace('OneWeek', '1w').replace('OneMonth', '1M');
+                select.appendChild(option);
+            });
+        }
+
+        async function populateCryptoSymbols() {
+            console.log("Attempting to populate crypto symbols...");
+            const select = document.getElementById('cryptoSelect');
+            select.innerHTML = ''; // Pulisci le opzioni esistenti
+            try {
+                console.log("Invoking GetAvailableSymbols on server...");
+                const symbols = await connection.invoke("GetAvailableSymbols");
+                console.log("Symbols received:", symbols); // Log dei simboli ricevuti
+                if (symbols && symbols.length > 0) {
+                    symbols.forEach(symbol => {
+                        const option = document.createElement('option');
+                        option.value = symbol;
+                        option.innerText = symbol;
+                        select.appendChild(option);
+                    });
+                    // Seleziona BTCUSDT per default se presente
+                    if (symbols.includes("BTCUSDT")) {
+                        select.value = "BTCUSDT";
+                    }
+                    console.log("Crypto symbols populated successfully.");
+                } else {
+                    console.warn("No symbols received or symbols array is empty.");
+                }
+            } catch (err) {
+                console.error("Error populating crypto symbols:", err);
+            }
+        }
+
+        connection.on("ReceiveTickerUpdate", (tickerData) => {
+            console.log("ReceiveTickerUpdate received:", tickerData);
+            const tickerId = `${tickerData.symbol}_display`;
+            let tickerElement = document.getElementById(tickerId);
+            if (!tickerElement) {
+                console.log(`Creating new ticker element for ${tickerData.symbol} with ID: ${tickerId}`);
+                tickerElement = document.createElement('span');
+                tickerElement.id = tickerId;
+                tickerElement.className = 'single-ticker';
+                tickerElement.innerHTML = `<span>${tickerData.symbol}: $${tickerData.price.toFixed(2)}</span><span id="${tickerData.symbol}_kline_display" class="kline-display"></span>`;
+                document.getElementById('tickerList').appendChild(tickerElement);
+            } else {
+                console.log(`Updating existing ticker element for ${tickerData.symbol} with ID: ${tickerId}`);
+                tickerElement.querySelector('span:first-child').innerText = `${tickerData.symbol}: $${tickerData.price.toFixed(2)}`;
+            }
+        });
+
+        connection.on("ReceiveKlineUpdate", (klineData) => {
+            // Questo listener non è strettamente necessario per la richiesta singola,
+            // ma se volessimo stream di kline, li gestirebbe qui.
+            // Per ora, ci basiamo sulla richiesta diretta per "Mostra Kline".
+        });
+
+        document.getElementById('subscribeButton').addEventListener('click', async () => {
+            const symbol = document.getElementById('cryptoSelect').value;
+            try {
+                await connection.invoke("SubscribeToTicker", symbol);
+                console.log(`Sottoscritto a ${symbol}`);
+            } catch (err) {
+                console.error(`Errore durante la sottoscrizione a ${symbol}:`, err);
+            }
+        });
+
+        document.getElementById('unsubscribeButton').addEventListener('click', async () => {
+            const symbol = document.getElementById('cryptoSelect').value;
+            try {
+                await connection.invoke("UnsubscribeFromTicker", symbol);
+                console.log(`Disiscritto da ${symbol}`);
+                const tickerElement = document.getElementById(`${symbol}_display`);
+                if (tickerElement) {
+                    tickerElement.remove();
+                }
+            } catch (err) {
+                console.error(`Errore durante la disiscrizione da ${symbol}:`, err);
+            }
+        });
+
+        document.getElementById('showKlineButton').addEventListener('click', async () => {
+            const symbol = document.getElementById('cryptoSelect').value;
+            const interval = document.getElementById('klineIntervalSelect').value;
+            try {
+                const klineData = await connection.invoke("GetKlineData", symbol, interval);
+                const klineDisplayElement = document.getElementById(`${symbol}_kline_display`);
+                if (klineDisplayElement) {
+                    if (klineData) {
+                        klineDisplayElement.innerText = `Kline (${interval.replace('Minute', 'm').replace('Hour', 'h').replace('Day', 'd').replace('ThreeDay', '3d').replace('OneWeek', '1w').replace('OneMonth', '1M')}): O:${klineData.openPrice.toFixed(2)} C:${klineData.closePrice.toFixed(2)}`;
+                    } else {
+                        klineDisplayElement.innerText = `Kline (${interval.replace('Minute', 'm').replace('Hour', 'h').replace('Day', 'd').replace('ThreeDay', '3d').replace('OneWeek', '1w').replace('OneMonth', '1M')}): N/A`;
+                    }
+                }
+                console.log(`Richiesta Kline per ${symbol} ${interval}:`, klineData);
+            } catch (err) {
+                console.error(`Errore durante il recupero dei dati Kline per ${symbol} ${interval}:`, err);
+            }
+        });
+
+        async function start() {
+            try {
+                await connection.start();
+                console.log("SignalR Connected.");
+                populateKlineIntervals();
+                await populateCryptoSymbols();
+                await connection.invoke("SubscribeToTicker", document.getElementById('cryptoSelect').value);
+            } catch (err) {
+                console.error(err);
+                setTimeout(start, 5000);
+            }
+        };
+
+        connection.onclose(async (error) => {
+            console.log("SignalR Disconnected. Reconnecting...");
+            setTimeout(start, 5000);
+        });
+
+        start();
+    </script>
+</body>
+</html> 

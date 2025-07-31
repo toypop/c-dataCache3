@@ -1,0 +1,39 @@
+{
+  "Version": 1,
+  "Hash": "vG9SbskTLBxCR3N9yjNBq7VX4gXuor5LEqq4J0v5Uz0=",
+  "Source": "c#dataCache3",
+  "BasePath": "_content/c#dataCache3",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [
+    {
+      "Name": "c#dataCache3/wwwroot",
+      "Source": "c#dataCache3",
+      "ContentRoot": "/home/toypop/vscodeFile/binanceLast2/c#dataCache3/wwwroot/",
+      "BasePath": "_content/c#dataCache3",
+      "Pattern": "**"
+    }
+  ],
+  "Assets": [
+    {
+      "Identity": "/home/toypop/vscodeFile/binanceLast2/c#dataCache3/wwwroot/index.html",
+      "SourceId": "c#dataCache3",
+      "SourceType": "Discovered",
+      "ContentRoot": "/home/toypop/vscodeFile/binanceLast2/c#dataCache3/wwwroot/",
+      "BasePath": "_content/c#dataCache3",
+      "RelativePath": "index.html",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "PreferTarget",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot/index.html"
+    }
+  ]
+}

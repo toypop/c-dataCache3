@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../build/c#dataCache3.props" />
+</Project>

@@ -1,0 +1,13 @@
+I WebSockets sono una tecnologia di comunicazione che fornisce un canale di comunicazione full-duplex su una singola connessione TCP. A differenza del tradizionale HTTP, che è stateless e richiede una nuova connessione per ogni richiesta, i WebSockets mantengono una connessione persistente tra il client (ad esempio, il tuo browser web) e il server.
+
+Ecco i punti chiave della loro logica:
+
+1.  **Handshake iniziale:** La comunicazione WebSocket inizia con un handshake HTTP. Il client invia una richiesta HTTP standard con un header "Upgrade: websocket" e "Connection: Upgrade". Se il server supporta i WebSockets, risponde con un handshake di successo, indicando che la connessione è stata "aggiornata" a un protocollo WebSocket.
+
+2.  **Connessione persistente:** Una volta completato l'handshake, la connessione TCP sottostante rimane aperta, consentendo al client e al server di scambiarsi dati in qualsiasi momento senza dover ristabilire la connessione. Questo è il concetto di "full-duplex": entrambi possono inviare e ricevere dati contemporaneamente.
+
+3.  **Comunicazione in tempo reale:** Poiché la connessione è persistente, i WebSockets sono ideali per applicazioni che richiedono aggiornamenti in tempo reale, come chat, giochi online, notifiche push e, come nel nostro caso, stream di dati finanziari. Il server può "spingere" i dati al client non appena diventano disponibili, senza che il client debba continuamente "chiedere" (polling).
+
+4.  **Minore overhead:** Dopo l'handshake iniziale, l'overhead per la trasmissione dei dati è notevolmente inferiore rispetto a HTTP, poiché non ci sono header HTTP ripetitivi per ogni messaggio. Questo si traduce in una maggiore efficienza e minore latenza.
+
+5.  **Frames di dati:** I dati nei WebSockets vengono trasmessi in "frames". Questi frames possono contenere testo (UTF-8) o dati binari. Questo permette una comunicazione efficiente e flessibile. 

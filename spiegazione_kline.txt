@@ -1,0 +1,39 @@
+Spiegazione delle modifiche per l'integrazione dei dati Kline e la selezione tramite menu a tendina:
+
+1.  **Modifica di `BinanceStreamManager.cs`:**
+    *   È stata introdotta una `ConcurrentDictionary<string, UpdateSubscription>` denominata `_klineSubscriptions` per gestire più sottoscrizioni di stream Kline contemporaneamente. Questo permette all'applicazione di ricevere e memorizzare dati di candele per diversi intervalli di tempo senza sovrascrivere le sottoscrizioni.
+    *   Il metodo `StartKlineStreamAsync` è stato aggiornato per aggiungere la nuova sottoscrizione al dizionario, utilizzando una chiave composta da simbolo e intervallo (es. "BTCUSDT_1m"). Include anche un controllo per evitare sottoscrizioni duplicate.
+    *   È stato aggiunto un nuovo metodo `StopKlineStreamAsync(string symbol, KlineInterval interval)` per disiscriversi specificamente da uno stream Kline, rimuovendolo dal dizionario e chiudendo la connessione.
+    *   I metodi `StopAllStreamsAsync()` e `Dispose()` sono stati modificati per iterare su `_klineSubscriptions` e chiudere tutte le sottoscrizioni Kline attive al momento dell'arresto dell'applicazione o dello smaltimento delle risorse.
+
+2.  **Modifica di `Program.cs`:**
+    *   Nel `BinanceStreamHostedService.StartAsync`, il codice per avviare gli stream Kline è stato decommentato. L'applicazione ora sottoscrive automaticamente tutti gli intervalli `KlineInterval` disponibili per "BTCUSDT" all'avvio, ad eccezione dell'intervallo "OneSecond" (per ridurre il carico eccessivo di dati).
+    *   Sono stati aggiunti i namespace `Binance.Net.Enums`, `System` e `System.Linq` per supportare l'enumerazione degli intervalli Kline.
+
+3.  **Modifica di `wwwroot/index.html`:**
+    *   È stata aggiunta una sezione `<div class="navbar">` che contiene due set di controlli: uno per la selezione del ticker (già presente) e uno nuovo per la selezione dell'**intervallo Kline**.
+    *   Il nuovo set include un `<select id="klineIntervalSelect">` che verrà popolato dinamicamente con gli intervalli Kline disponibili tramite JavaScript.
+    *   Un pulsante `<button id="showKlineButton">` è stato aggiunto per permettere all'utente di richiedere la visualizzazione dei dati Kline per il simbolo e l'intervallo selezionati.
+    *   Lo script JavaScript è stato aggiornato per:
+        *   Aggiungere la funzione `populateKlineIntervals()` che riempie il menu a tendina degli intervalli Kline all'avvio della connessione SignalR.
+        *   Implementare l'event listener per il pulsante `showKlineButton`. Questo listener chiama il nuovo metodo `GetKlineData` sul server (tramite `connection.invoke()`) passando il simbolo e l'intervallo scelti.
+        *   La funzione `ReceiveTickerUpdate` è stata modificata per creare dinamicamente uno `<span>` aggiuntivo all'interno di ogni `.single-ticker` con `id="${tickerData.symbol}_kline_display"` e `class="kline-display"`. Questo `<span>` è destinato a mostrare il valore Kline.
+        *   Il testo del valore Kline viene aggiornato in questo `<span>` in piccolo e giallo, con il formato "Kline (intervallo): O:PrezzoApertura C:PrezzoChiusura". Se i dati Kline non sono disponibili, viene mostrato "N/A".
+
+4.  **Modifica di `TickerHub.cs`:**
+    *   Il costruttore di `TickerHub` ora accetta un'istanza di `BinanceDataCache` tramite Dependency Injection. Questo permette all'hub di accedere ai dati Kline memorizzati nella cache.
+    *   È stato aggiunto un nuovo metodo pubblico `KlineData GetKlineData(string symbol, KlineInterval interval)`. Questo metodo viene chiamato dal client tramite SignalR e restituisce i dati Kline richiesti dalla `BinanceDataCache`.
+    *   È stato aggiunto il namespace `Binance.Net.Enums` per poter utilizzare il tipo `KlineInterval`.
+
+**Funzionamento:**
+
+All'avvio dell'applicazione, il `BinanceStreamHostedService` si connette a Binance e avvia gli stream sia per il ticker di BTCUSDT che per tutti i principali intervalli Kline di BTCUSDT, memorizzando i dati nella `BinanceDataCache`.
+
+Quando un client si connette alla pagina web, il JavaScript nella pagina:
+1.  Stabilisce la connessione SignalR.
+2.  Popola il menu a tendina degli intervalli Kline.
+3.  Si sottoscrive automaticamente al ticker di BTCUSDT per visualizzare il prezzo in tempo reale.
+
+L'utente può quindi:
+*   Selezionare diverse criptovalute dal primo menu a tendina e cliccare su "Sottoscrivi" o "Disiscriviti" per aggiungere/rimuovere i loro ticker dalla visualizzazione.
+*   Selezionare un intervallo Kline dal secondo menu a tendina e cliccare su "Mostra Kline". Questo invia una richiesta al `TickerHub` sul server. Il server recupera il dato Kline più recente per il simbolo e l'intervallo richiesti dalla cache e lo restituisce al client. Il JavaScript aggiorna poi l'interfaccia utente, mostrando il valore di apertura e chiusura del Kline selezionato sotto il prezzo del ticker, formattato in giallo e in piccolo.Questo fornisce una vista dinamica dei dati di mercato in tempo reale, combinando i prezzi attuali con le informazioni storiche (Kline) per intervalli specifici. 

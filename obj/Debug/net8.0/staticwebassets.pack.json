@@ -1,0 +1,25 @@
+{
+  "Files": [
+    {
+      "Id": "/home/toypop/vscodeFile/binanceLast2/c#dataCache3/wwwroot/index.html",
+      "PackagePath": "staticwebassets/index.html"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.build.c#dataCache3.props",
+      "PackagePath": "build\\c#dataCache3.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.buildMultiTargeting.c#dataCache3.props",
+      "PackagePath": "buildMultiTargeting\\c#dataCache3.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.buildTransitive.c#dataCache3.props",
+      "PackagePath": "buildTransitive\\c#dataCache3.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.c#dataCache3.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    }
+  ],
+  "ElementsToRemove": []
+}
