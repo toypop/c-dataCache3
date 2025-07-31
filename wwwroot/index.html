@@ -261,6 +261,77 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        .modal-overlay {
+            display: none; /* Nascosto di default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); /* Sfondo semi-trasparente */
+            backdrop-filter: blur(5px);
+            z-index: 2000; /* Sopra tutto il resto */
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 700px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            color: white;
+            position: relative;
+            transform: translateY(-50px);
+            transition: transform 0.3s ease-in-out;
+            opacity: 0;
+        }
+
+        .modal-overlay.show .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 15px;
+        }
+
+        .modal-header h4 {
+            margin: 0;
+            font-weight: 600;
+            background: var(--secondary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .modal-close-button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #ccc;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .modal-close-button:hover {
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -355,6 +426,23 @@
                         Seleziona un intervallo e clicca "Mostra Kline" per visualizzare i dati
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup Modale per Settaggi -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 id="modalTitle">Impostazioni per <span id="currentSymbol"></span></h4>
+                <button class="modal-close-button" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Contenuto dei settaggi verrà inserito qui -->
+                <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
+                <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
+                <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
+                <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
             </div>
         </div>
     </div>
@@ -547,6 +635,33 @@
         });
 
         start();
+
+        // Funzionalità del popup
+        const settingsModal = document.getElementById('settingsModal');
+        const closeModalButton = document.getElementById('closeModal');
+        const tickerList = document.getElementById('tickerList');
+        const currentSymbolSpan = document.getElementById('currentSymbol');
+
+        // Apri il modale quando si clicca su una ticker card
+        tickerList.addEventListener('click', function(event) {
+            let targetCard = event.target.closest('.ticker-card');
+            if (targetCard) {
+                const symbol = targetCard.querySelector('.ticker-symbol').innerText;
+                currentSymbolSpan.innerText = symbol;
+                settingsModal.classList.add('show');
+            }
+        });
+
+        // Chiudi il modale quando si clicca sul pulsante di chiusura o sull'overlay
+        closeModalButton.addEventListener('click', function() {
+            settingsModal.classList.remove('show');
+        });
+
+        settingsModal.addEventListener('click', function(event) {
+            if (event.target === settingsModal) {
+                settingsModal.classList.remove('show');
+            }
+        });
     </script>
 </body>
 </html>
