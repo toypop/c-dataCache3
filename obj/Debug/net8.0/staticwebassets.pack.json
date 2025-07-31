@@ -5,6 +5,10 @@
       "PackagePath": "staticwebassets/index.html"
     },
     {
+      "Id": "/home/toypop/vscodeFile/binanceLast2/c#dataCache3/wwwroot/index2.html",
+      "PackagePath": "staticwebassets/index2.html"
+    },
+    {
       "Id": "obj/Debug/net8.0/staticwebassets/msbuild.build.c#dataCache3.props",
       "PackagePath": "build\\c#dataCache3.props"
     },

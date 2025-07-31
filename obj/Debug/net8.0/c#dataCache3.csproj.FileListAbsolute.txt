@@ -125,3 +125,4 @@
 /home/toypop/vscodeFile/binanceLast2/c#dataCache3/obj/Debug/net8.0/staticwebassets/msbuild.buildTransitive.c#dataCache3.props
 /home/toypop/vscodeFile/binanceLast2/c#dataCache3/obj/Debug/net8.0/staticwebassets.pack.json
 /home/toypop/vscodeFile/binanceLast2/c#dataCache3/obj/Debug/net8.0/scopedcss/bundle/c#dataCache3.styles.css
+/home/toypop/vscodeFile/binanceLast2/c#dataCache3/obj/Debug/net8.0/c#dataCache3.sourcelink.json

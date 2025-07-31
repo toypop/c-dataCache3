@@ -1,96 +1,399 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Binance Crypto Ticker</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --dark-bg: #1a1d29;
+            --sidebar-bg: #252836;
+            --card-bg: #2d3142;
+        }
+
         body {
-            background-color: blue;
-            color: white;
-            font-family: Arial, sans-serif;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
+            background: var(--primary-gradient);
             min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
         }
-        .navbar {
-            background-color: #333;
-            padding: 10px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        .navbar select, .navbar button {
-            padding: 8px 12px;
-            border-radius: 5px;
-            border: none;
-            font-size: 1em;
-            cursor: pointer;
-        }
-        .ticker-display {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            font-size: 5em;
-            font-weight: bold;
-            text-align: center;
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 280px;
+            background: var(--sidebar-bg);
             padding: 20px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            transition: transform 0.3s ease;
         }
-        #tickerList {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            width: 80%;
-            max-width: 600px;
+
+        .sidebar-toggle {
+            display: none;
         }
-        .single-ticker {
-            background-color: rgba(255, 255, 255, 0.1);
-            padding: 10px;
-            border-radius: 8px;
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            .sidebar-toggle {
+                display: block;
+                position: fixed;
+                top: 20px;
+                left: 20px;
+                z-index: 1001;
+                background: var(--sidebar-bg);
+                border: none;
+                color: white;
+                padding: 10px;
+                border-radius: 5px;
+            }
+        }
+
+        .main-content {
+            margin-left: 280px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 20px;
+        }
+
+        .sidebar-header h3 {
+            margin: 10px 0 0 0;
+            font-weight: 600;
+        }
+
+        .control-section {
+            margin-bottom: 30px;
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .control-section h5 {
+            color: #fff;
+            margin-bottom: 15px;
+            font-weight: 600;
             display: flex;
-            flex-direction: column;
             align-items: center;
+            gap: 8px;
         }
-        .kline-display {
-            font-size: 0.3em;
-            color: yellow;
-            margin-top: 5px;
+
+        .form-select, .btn {
+            margin-bottom: 10px;
+            border-radius: 8px;
+        }
+
+        .btn-custom {
+            background: var(--secondary-gradient);
+            border: none;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            color: white;
+        }
+
+        .btn-outline-custom {
+            border: 2px solid #f5576c;
+            color: #f5576c;
+            background: transparent;
+            font-weight: 500;
+        }
+
+        .btn-outline-custom:hover {
+            background: #f5576c;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .ticker-dashboard {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .dashboard-header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .dashboard-header h2 {
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .dashboard-header p {
+            opacity: 0.8;
+            margin: 0;
+        }
+
+        .ticker-grid {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .ticker-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(5px);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+            color: white;
+        }
+
+        .ticker-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .ticker-symbol {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .ticker-price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            background: var(--secondary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .kline-info {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #ffffff;
+            border-left: 6px solid #ffffff;
+        }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            color: white;
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 12px;
+            height: 12px;
+            background: #28a745;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .stats-bar {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            color: white;
+            text-align: center;
+        }
+
+        .stat-item h6 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .stat-item small {
+            opacity: 0.7;
+        }
+
+        /* Animazioni personalizzate */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body>
-    <div class="navbar">
-        <div>
-            <label for="cryptoSelect">Ticker:</label>
-            <select id="cryptoSelect">
-                <!-- Opzioni ticker saranno popolate da JS -->
-            </select>
-            <button id="subscribeButton">Sottoscrivi</button>
-            <button id="unsubscribeButton">Disiscriviti</button>
+    <!-- Mobile Sidebar Toggle -->
+    <button class="sidebar-toggle btn" id="sidebarToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-chart-line fa-2x text-warning"></i>
+            <h3>Crypto Ticker</h3>
+            <small class="text-muted">Real-time Market Data</small>
         </div>
-        <div>
-            <label for="klineIntervalSelect">Kline Interval:</label>
-            <select id="klineIntervalSelect">
-                <!-- Opzioni intervallo Kline saranno popolate da JS -->
-            </select>
-            <button id="showKlineButton">Mostra Kline</button>
+
+        <!-- Ticker Controls -->
+        <div class="control-section">
+            <h5><i class="fas fa-coins"></i> Ticker Control</h5>
+            <div class="mb-3">
+                <label for="cryptoSelect" class="form-label text-white">Seleziona Ticker:</label>
+                <select id="cryptoSelect" class="form-select">
+                    <!-- Opzioni ticker saranno popolate da JS -->
+                </select>
+            </div>
+            <div class="d-grid gap-2">
+                <button id="subscribeButton" class="btn btn-custom">
+                    <i class="fas fa-plus me-2"></i>Sottoscrivi
+                </button>
+                <button id="unsubscribeButton" class="btn btn-outline-custom">
+                    <i class="fas fa-minus me-2"></i>Disiscriviti
+                </button>
+            </div>
+        </div>
+
+        <!-- Kline Controls -->
+        <div class="control-section">
+            <h5><i class="fas fa-chart-bar"></i> Kline Data</h5>
+            <div class="mb-3">
+                <label for="klineIntervalSelect" class="form-label text-white">Intervallo:</label>
+                <select id="klineIntervalSelect" class="form-select">
+                    <!-- Opzioni intervallo Kline saranno popolate da JS -->
+                </select>
+            </div>
+            <div class="d-grid">
+                <button id="showKlineButton" class="btn btn-custom">
+                    <i class="fas fa-chart-area me-2"></i>Mostra Kline
+                </button>
+            </div>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="control-section">
+            <h5><i class="fas fa-wifi"></i> Status</h5>
+            <div class="d-flex align-items-center">
+                <div class="status-indicator"></div>
+                <span class="text-white ms-2">Connesso</span>
+            </div>
         </div>
     </div>
 
-    <div class="ticker-display">
-        <div id="tickerList">
-            <span id="BTCUSDT_display" class="single-ticker">
-                <span>Loading BTCUSDT...</span>
-                <span id="BTCUSDT_kline_display" class="kline-display"></span>
-            </span>
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <h6>Active Tickers</h6>
+                <small id="activeTickers">0</small>
+            </div>
+            <div class="stat-item">
+                <h6>Last Update</h6>
+                <small id="lastUpdate">-</small>
+            </div>
+            <div class="stat-item">
+                <h6>Connection</h6>
+                <small class="text-success">Online</small>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="ticker-dashboard">
+            <div class="dashboard-header">
+                <h2><i class="fas fa-chart-line me-2"></i>Live Market Dashboard</h2>
+                <p>Real-time cryptocurrency prices from Binance</p>
+            </div>
+
+            <div class="ticker-grid" id="tickerList">
+                <div class="ticker-card fade-in" id="BTCUSDT_display">
+                    <div class="ticker-symbol">BTCUSDT</div>
+                    <div class="ticker-price">Loading...</div>
+                    <div class="kline-info" id="BTCUSDT_kline_display">
+                        Seleziona un intervallo e clicca "Mostra Kline" per visualizzare i dati
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
     <script>
+        // Mobile sidebar toggle
+        document.getElementById('sidebarToggle').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('show');
+        });
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(event.target) && 
+                !toggle.contains(event.target) && 
+                sidebar.classList.contains('show')) {
+                sidebar.classList.remove('show');
+            }
+        });
+
+        // Counter for active tickers
+        let activeTickersCount = 0;
+
+        function updateActiveTickersCount() {
+            document.getElementById('activeTickers').textContent = activeTickersCount;
+        }
+
+        function updateLastUpdateTime() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
+        }
+
+        // Original JavaScript code with enhancements
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/tickerHub")
             .configureLogging(signalR.LogLevel.Information)
@@ -120,7 +423,7 @@
             try {
                 console.log("Invoking GetAvailableSymbols on server...");
                 const symbols = await connection.invoke("GetAvailableSymbols");
-                console.log("Symbols received:", symbols); // Log dei simboli ricevuti
+                console.log("Symbols received:", symbols);
                 if (symbols && symbols.length > 0) {
                     symbols.forEach(symbol => {
                         const option = document.createElement('option');
@@ -128,7 +431,6 @@
                         option.innerText = symbol;
                         select.appendChild(option);
                     });
-                    // Seleziona BTCUSDT per default se presente
                     if (symbols.includes("BTCUSDT")) {
                         select.value = "BTCUSDT";
                     }
@@ -145,23 +447,33 @@
             console.log("ReceiveTickerUpdate received:", tickerData);
             const tickerId = `${tickerData.symbol}_display`;
             let tickerElement = document.getElementById(tickerId);
+            
             if (!tickerElement) {
                 console.log(`Creating new ticker element for ${tickerData.symbol} with ID: ${tickerId}`);
-                tickerElement = document.createElement('span');
+                tickerElement = document.createElement('div');
                 tickerElement.id = tickerId;
-                tickerElement.className = 'single-ticker';
-                tickerElement.innerHTML = `<span>${tickerData.symbol}: $${tickerData.price.toFixed(2)}</span><span id="${tickerData.symbol}_kline_display" class="kline-display"></span>`;
+                tickerElement.className = 'ticker-card fade-in';
+                tickerElement.innerHTML = `
+                    <div class="ticker-symbol">${tickerData.symbol}</div>
+                    <div class="ticker-price">$${tickerData.price.toFixed(2)}</div>
+                    <div class="kline-info" id="${tickerData.symbol}_kline_display">
+                        Seleziona un intervallo e clicca "Mostra Kline" per visualizzare i dati
+                    </div>
+                `;
                 document.getElementById('tickerList').appendChild(tickerElement);
+                activeTickersCount++;
+                updateActiveTickersCount();
             } else {
                 console.log(`Updating existing ticker element for ${tickerData.symbol} with ID: ${tickerId}`);
-                tickerElement.querySelector('span:first-child').innerText = `${tickerData.symbol}: $${tickerData.price.toFixed(2)}`;
+                tickerElement.querySelector('.ticker-price').innerText = `$${tickerData.price.toFixed(2)}`;
             }
+            
+            updateLastUpdateTime();
         });
 
         connection.on("ReceiveKlineUpdate", (klineData) => {
             // Questo listener non è strettamente necessario per la richiesta singola,
             // ma se volessimo stream di kline, li gestirebbe qui.
-            // Per ora, ci basiamo sulla richiesta diretta per "Mostra Kline".
         });
 
         document.getElementById('subscribeButton').addEventListener('click', async () => {
@@ -182,6 +494,8 @@
                 const tickerElement = document.getElementById(`${symbol}_display`);
                 if (tickerElement) {
                     tickerElement.remove();
+                    activeTickersCount--;
+                    updateActiveTickersCount();
                 }
             } catch (err) {
                 console.error(`Errore durante la disiscrizione da ${symbol}:`, err);
@@ -196,9 +510,14 @@
                 const klineDisplayElement = document.getElementById(`${symbol}_kline_display`);
                 if (klineDisplayElement) {
                     if (klineData) {
-                        klineDisplayElement.innerText = `Kline (${interval.replace('Minute', 'm').replace('Hour', 'h').replace('Day', 'd').replace('ThreeDay', '3d').replace('OneWeek', '1w').replace('OneMonth', '1M')}): O:${klineData.openPrice.toFixed(2)} C:${klineData.closePrice.toFixed(2)}`;
+                        const intervalDisplay = interval.replace('Minute', 'm').replace('Hour', 'h').replace('Day', 'd').replace('ThreeDay', '3d').replace('OneWeek', '1w').replace('OneMonth', '1M');
+                        klineDisplayElement.innerHTML = `
+                            <strong>Kline Data (${intervalDisplay})</strong><br>
+                            <i class="fas fa-arrow-up me-1"></i>Open: $${klineData.openPrice.toFixed(2)}<br>
+                            <i class="fas fa-arrow-down me-1"></i>Close: $${klineData.closePrice.toFixed(2)}
+                        `;
                     } else {
-                        klineDisplayElement.innerText = `Kline (${interval.replace('Minute', 'm').replace('Hour', 'h').replace('Day', 'd').replace('ThreeDay', '3d').replace('OneWeek', '1w').replace('OneMonth', '1M')}): N/A`;
+                        klineDisplayElement.innerHTML = `<strong>Kline Data:</strong> N/A`;
                     }
                 }
                 console.log(`Richiesta Kline per ${symbol} ${interval}:`, klineData);
@@ -214,6 +533,8 @@
                 populateKlineIntervals();
                 await populateCryptoSymbols();
                 await connection.invoke("SubscribeToTicker", document.getElementById('cryptoSelect').value);
+                activeTickersCount = 1; // BTCUSDT is subscribed by default
+                updateActiveTickersCount();
             } catch (err) {
                 console.error(err);
                 setTimeout(start, 5000);
@@ -228,4 +549,4 @@
         start();
     </script>
 </body>
-</html> 
+</html>
