@@ -459,6 +459,23 @@
         </div>
     </div>
 
+    <!-- Nuovo Popup Modale di Conferma -->
+    <div id="confirmationModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h4 id="confirmationModalTitle" style="background: var(--secondary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Conferma Azione</h4>
+                <button class="modal-close-button" id="closeConfirmationModal">&times;</button>
+            </div>
+            <div class="modal-body text-center">
+                <p id="confirmationMessage" class="text-white lead mb-4"></p>
+                <div class="d-flex justify-content-around">
+                    <button id="confirmButton" class="btn btn-custom px-4">Conferma</button>
+                    <button id="cancelButton" class="btn btn-outline-custom px-4">Annulla</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
@@ -777,11 +794,54 @@
             }
         });
 
+        // Funzione per mostrare il modale di conferma personalizzato
+        const confirmationModal = document.getElementById('confirmationModal');
+        const confirmationMessageElement = document.getElementById('confirmationMessage');
+        const confirmButton = document.getElementById('confirmButton');
+        const cancelButton = document.getElementById('cancelButton');
+        const closeConfirmationModalButton = document.getElementById('closeConfirmationModal');
+
+        function showConfirmationDialog(message) {
+            return new Promise(resolve => {
+                confirmationMessageElement.textContent = message;
+                confirmationModal.classList.add('show');
+
+                const onConfirm = () => {
+                    confirmationModal.classList.remove('show');
+                    confirmButton.removeEventListener('click', onConfirm);
+                    cancelButton.removeEventListener('click', onCancel);
+                    closeConfirmationModalButton.removeEventListener('click', onCancel);
+                    resolve(true);
+                };
+
+                const onCancel = () => {
+                    confirmationModal.classList.remove('show');
+                    confirmButton.removeEventListener('click', onConfirm);
+                    cancelButton.removeEventListener('click', onCancel);
+                    closeConfirmationModalButton.removeEventListener('click', onCancel);
+                    resolve(false);
+                };
+
+                confirmButton.addEventListener('click', onConfirm);
+                cancelButton.addEventListener('click', onCancel);
+                closeConfirmationModalButton.addEventListener('click', onCancel);
+
+                // Chiudi anche cliccando sull'overlay
+                confirmationModal.addEventListener('click', function handler(event) {
+                    if (event.target === confirmationModal) {
+                        onCancel();
+                        confirmationModal.removeEventListener('click', handler); // Rimuovi il listener dopo l'uso
+                    }
+                });
+            });
+        }
+
         // Logica per il pulsante di disiscrizione nel modale
         document.getElementById('modalUnsubscribeButton').addEventListener('click', async () => {
             const symbol = document.getElementById('currentSymbol').innerText;
             
-            if (confirm(`Sei sicuro di voler disiscriverti da ${symbol}? Tutti i dati per questo ticker verranno rimossi.`)) {
+            // Sostituisci il confirm() nativo con il modale personalizzato
+            if (await showConfirmationDialog(`Sei sicuro di voler disiscriverti da ${symbol}? Tutti i dati per questo ticker verranno rimossi.`)) {
                 if (symbol && subscribedSymbols.has(symbol)) {
                     try {
                         await connection.invoke("UnsubscribeFromTicker", symbol);
@@ -794,7 +854,7 @@
                         if (tickerElement) {
                             tickerElement.remove();
                         }
-                        settingsModal.classList.remove('show'); // Chiudi il modale
+                        settingsModal.classList.remove('show'); // Chiudi il modale delle impostazioni
                     } catch (err) {
                         console.error(`Errore durante la disiscrizione da ${symbol} (modale):`, err);
                         showSubscriptionMessage(`Errore durante la disiscrizione da ${symbol}.`, true);
