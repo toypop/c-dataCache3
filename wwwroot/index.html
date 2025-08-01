@@ -449,6 +449,12 @@
                 <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
                 <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
                 <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
+
+                <div class="d-grid mt-4">
+                    <button id="modalUnsubscribeButton" class="btn btn-outline-custom">
+                        <i class="fas fa-minus me-2"></i>Disiscrivi Ticker
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -770,6 +776,36 @@
                 settingsModal.classList.remove('show');
             }
         });
+
+        // Logica per il pulsante di disiscrizione nel modale
+        document.getElementById('modalUnsubscribeButton').addEventListener('click', async () => {
+            const symbol = document.getElementById('currentSymbol').innerText;
+            
+            if (confirm(`Sei sicuro di voler disiscriverti da ${symbol}? Tutti i dati per questo ticker verranno rimossi.`)) {
+                if (symbol && subscribedSymbols.has(symbol)) {
+                    try {
+                        await connection.invoke("UnsubscribeFromTicker", symbol);
+                        subscribedSymbols.delete(symbol);
+                        saveSubscribedSymbols();
+                        updateActiveTickersCount();
+                        console.log(`Disiscritto da ${symbol} tramite modale.`);
+                        showSubscriptionMessage(`Disiscritto da ${symbol} con successo!`, false);
+                        const tickerElement = document.getElementById(`${symbol}_display`);
+                        if (tickerElement) {
+                            tickerElement.remove();
+                        }
+                        settingsModal.classList.remove('show'); // Chiudi il modale
+                    } catch (err) {
+                        console.error(`Errore durante la disiscrizione da ${symbol} (modale):`, err);
+                        showSubscriptionMessage(`Errore durante la disiscrizione da ${symbol}.`, true);
+                    }
+                } else {
+                    console.log(`Non sottoscritto a ${symbol} (tentativo da modale).`);
+                    showSubscriptionMessage(`Non sei sottoscritto a ${symbol}.`, true); // Messaggio di errore se non è sottoscritto
+                }
+            }
+        });
+
     </script>
 </body>
 </html>
