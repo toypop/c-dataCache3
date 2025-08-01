@@ -253,6 +253,11 @@
         }
 
         /* Animazioni personalizzate */
+        #connectionStatusText {
+            font-weight: 900;
+            color: #7FFFD4 !important; /* Verde acqua per migliore visibilità */
+        }
+
         .fade-in {
             animation: fadeIn 0.5s ease-in;
         }
@@ -407,7 +412,7 @@
             </div>
             <div class="stat-item">
                 <h6>Connection</h6>
-                <small class="text-success">Online</small>
+                <small id="connectionStatusText" class="text-success">Online</small>
             </div>
         </div>
 
