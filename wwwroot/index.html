@@ -258,6 +258,72 @@
             color: #7FFFD4 !important; /* Verde acqua per migliore visibilità */
         }
 
+        /* Stili per i Toast personalizzati */
+        #liveToast {
+            background: var(--card-bg);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        #liveToast .toast-header {
+            background: transparent;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        #liveToast .toast-header strong {
+            background: var(--secondary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #liveToast .toast-body {
+            color: white;
+            font-size: 1.1em;
+            padding: 1rem;
+        }
+
+        #liveToast.bg-success, #liveToast.bg-danger, #liveToast.bg-info {
+            /* background-color: transparent !important; Disabilita i colori di sfondo di Bootstrap */
+        }
+
+        /* Stile per rendere i Toast simili al modale */
+        .toast {
+            background: var(--card-bg) !important;
+            border-radius: 15px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+            color: white !important; /* Testo bianco per il corpo del toast */
+            border: none !important; /* Rimuovi bordo di Bootstrap */
+        }
+
+        .toast .toast-header {
+            background: transparent !important; /* Intestazione trasparente per vedere il background del toast */
+            border-bottom: 1px solid rgba(255,255,255,0.1) !important; /* Linea sotto l'intestazione */
+            color: white !important; /* Testo header bianco (per small, ecc) */
+            padding: 1rem; /* Adatta padding */
+        }
+
+        .toast .toast-header h5#toastTitle {
+            /* Per il titolo del toast, replicare lo stile del titolo del modale */
+            background: var(--secondary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 600 !important; /* Semibold come il titolo del modale */
+            font-size: 1.25rem; /* Simile h4 del modale */
+        }
+
+        .toast .toast-header small {
+            color: rgba(255, 255, 255, 0.7) !important; /* Colore testo piccolo dell'ora */
+        }
+
+        .toast-body.larger-toast {
+            font-size: 1.1rem; /* Dimensione del font del corpo */
+            padding: 20px; /* Padding più ampio */
+        }
+
         .fade-in {
             animation: fadeIn 0.5s ease-in;
         }
@@ -477,9 +543,9 @@
 
     <!-- Toast Container per i messaggi di notifica -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div id="liveToast" class="toast text-white" role="alert" aria-live="assertive" aria-atomic="true">
+        <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true"> <!-- Rimosso text-white qui -->
             <div class="toast-header">
-                <strong class="me-auto text-dark" id="toastTitle">Notifica</strong>
+                <h5 class="me-auto" id="toastTitle">Notifica</h5> <!-- Cambiato strong a h5 -->
                 <small>Ora</small>
                 <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
@@ -618,26 +684,24 @@
             toastBody.textContent = message;
             toastTitle.textContent = "Notifica"; // Titolo di default
 
-            // Reset classi di colore
-            toastElement.classList.remove('bg-success', 'bg-danger', 'bg-info', 'text-white');
-            toastTitle.classList.remove('text-white', 'text-dark');
+            // Rimuovi classi di tipo precedenti dal toastBody e dal toastElement
+            toastBody.classList.remove('text-success', 'text-danger', 'text-info', 'border-start', 'border-success', 'border-danger', 'border-info', 'border-5');
+            toastElement.classList.remove('bg-success', 'bg-danger', 'bg-info'); // Rimuovi solo bg-classi, text-white rimane per lo stile generale
+            toastElement.classList.add('text-white'); // Assicura che il testo del toast sia bianco
 
             switch (type) {
                 case 'success':
-                    toastElement.classList.add('bg-success');
                     toastTitle.textContent = "Successo!";
-                    toastTitle.classList.add('text-white');
+                    toastElement.classList.add('bg-success');
                     break;
                 case 'error':
-                    toastElement.classList.add('bg-danger');
                     toastTitle.textContent = "Errore!";
-                    toastTitle.classList.add('text-white');
+                    toastElement.classList.add('bg-danger');
                     break;
                 case 'info':
                 default:
-                    toastElement.classList.add('bg-info');
                     toastTitle.textContent = "Informazione";
-                    toastTitle.classList.add('text-white');
+                    toastElement.classList.add('bg-info');
                     break;
             }
             
