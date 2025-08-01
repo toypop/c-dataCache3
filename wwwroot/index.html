@@ -513,6 +513,8 @@
                 const symbols = await connection.invoke("GetAvailableSymbols");
                 console.log("Symbols received:", symbols);
                 if (symbols && symbols.length > 0) {
+                    // Ordina i simboli alfabeticamente
+                    symbols.sort((a, b) => a.localeCompare(b));
                     symbols.forEach(symbol => {
                         const option = document.createElement('option');
                         option.value = symbol;
