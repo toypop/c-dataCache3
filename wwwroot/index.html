@@ -370,7 +370,6 @@
                     <i class="fas fa-minus me-2"></i>Disiscriviti
                 </button>
             </div>
-            <div id="subscriptionMessage" class="mt-3 text-center" style="color: #f8d7da;"></div> <!-- Messaggi di feedback -->
         </div>
 
         <!-- Kline Controls -->
@@ -472,6 +471,20 @@
                     <button id="confirmButton" class="btn btn-custom px-4">Conferma</button>
                     <button id="cancelButton" class="btn btn-outline-custom px-4">Annulla</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container per i messaggi di notifica -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="liveToast" class="toast text-white" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto text-dark" id="toastTitle">Notifica</strong>
+                <small>Ora</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body larger-toast" id="toastBody">
+                <!-- Messaggio verrà inserito qui -->
             </div>
         </div>
     </div>
@@ -597,18 +610,39 @@
             // ma se volessimo stream di kline, li gestirebbe qui.
         });
 
-        const subscriptionMessageElement = document.getElementById('subscriptionMessage');
-        let messageTimeout;
+        function showSubscriptionMessage(message, type = 'info') { // type: 'success', 'error', 'info'
+            const toastElement = document.getElementById('liveToast');
+            const toastBody = document.getElementById('toastBody');
+            const toastTitle = document.getElementById('toastTitle');
 
-        function showSubscriptionMessage(message, isError = false) {
-            clearTimeout(messageTimeout);
-            subscriptionMessageElement.textContent = message;
-            subscriptionMessageElement.style.color = isError ? '#dc3545' : '#28a745'; // Rosso per errore, verde per successo/info
-            subscriptionMessageElement.style.display = 'block';
-            messageTimeout = setTimeout(() => {
-                subscriptionMessageElement.textContent = '';
-                subscriptionMessageElement.style.display = 'none';
-            }, 3000); // Messaggio scompare dopo 3 secondi
+            toastBody.textContent = message;
+            toastTitle.textContent = "Notifica"; // Titolo di default
+
+            // Reset classi di colore
+            toastElement.classList.remove('bg-success', 'bg-danger', 'bg-info', 'text-white');
+            toastTitle.classList.remove('text-white', 'text-dark');
+
+            switch (type) {
+                case 'success':
+                    toastElement.classList.add('bg-success');
+                    toastTitle.textContent = "Successo!";
+                    toastTitle.classList.add('text-white');
+                    break;
+                case 'error':
+                    toastElement.classList.add('bg-danger');
+                    toastTitle.textContent = "Errore!";
+                    toastTitle.classList.add('text-white');
+                    break;
+                case 'info':
+                default:
+                    toastElement.classList.add('bg-info');
+                    toastTitle.textContent = "Informazione";
+                    toastTitle.classList.add('text-white');
+                    break;
+            }
+            
+            const toast = new bootstrap.Toast(toastElement, { delay: 5000 }); // 5 secondi per test
+            toast.show();
         }
 
         document.getElementById('subscribeButton').addEventListener('click', async () => {
@@ -620,7 +654,7 @@
                     saveSubscribedSymbols(); // Salva le modifiche
                     updateActiveTickersCount(); // Aggiorna il contatore
                     console.log(`Sottoscritto a ${symbol}`);
-                    showSubscriptionMessage(`Sottoscritto a ${symbol} con successo!`, false);
+                    showSubscriptionMessage(`Sottoscritto a ${symbol} con successo!`, 'success');
 
                     // Crea o aggiorna la card per il simbolo appena sottoscritto
                     let tickerElement = document.getElementById(`${symbol}_display`);
@@ -640,11 +674,11 @@
 
                 } catch (err) {
                     console.error(`Errore durante la sottoscrizione a ${symbol}:`, err);
-                    showSubscriptionMessage(`Errore durante la sottoscrizione a ${symbol}.`, true);
+                    showSubscriptionMessage(`Errore durante la sottoscrizione a ${symbol}.`, 'error');
                 }
             } else if (subscribedSymbols.has(symbol)) {
                 console.log(`Già sottoscritto a ${symbol}.`);
-                showSubscriptionMessage(`Sei già sottoscritto a ${symbol}.`, false); // Messaggio informativo
+                showSubscriptionMessage(`Sei già sottoscritto a ${symbol}.`, 'info'); // Messaggio informativo
             }
         });
 
@@ -657,18 +691,18 @@
                     saveSubscribedSymbols(); // Salva le modifiche
                     updateActiveTickersCount(); // Aggiorna il contatore
                     console.log(`Disiscritto da ${symbol}`);
-                    showSubscriptionMessage(`Disiscritto da ${symbol} con successo!`, false);
+                    showSubscriptionMessage(`Disiscritto da ${symbol} con successo!`, 'success');
                     const tickerElement = document.getElementById(`${symbol}_display`);
                     if (tickerElement) {
                         tickerElement.remove();
                     }
                 } catch (err) {
                     console.error(`Errore durante la disiscrizione da ${symbol}:`, err);
-                    showSubscriptionMessage(`Errore durante la disiscrizione da ${symbol}.`, true);
+                    showSubscriptionMessage(`Errore durante la disiscrizione da ${symbol}.`, 'error');
                 }
             } else {
                 console.log(`Non sottoscritto a ${symbol}.`);
-                showSubscriptionMessage(`Non sei sottoscritto a ${symbol}.`, true); // Messaggio di errore se non è sottoscritto
+                showSubscriptionMessage(`Non sei sottoscritto a ${symbol}.`, 'error'); // Messaggio di errore se non è sottoscritto
             }
         });
 
@@ -849,7 +883,7 @@
                         saveSubscribedSymbols();
                         updateActiveTickersCount();
                         console.log(`Disiscritto da ${symbol} tramite modale.`);
-                        showSubscriptionMessage(`Disiscritto da ${symbol} con successo!`, false);
+                        showSubscriptionMessage(`Disiscritto da ${symbol} con successo!`, 'success');
                         const tickerElement = document.getElementById(`${symbol}_display`);
                         if (tickerElement) {
                             tickerElement.remove();
@@ -857,11 +891,11 @@
                         settingsModal.classList.remove('show'); // Chiudi il modale delle impostazioni
                     } catch (err) {
                         console.error(`Errore durante la disiscrizione da ${symbol} (modale):`, err);
-                        showSubscriptionMessage(`Errore durante la disiscrizione da ${symbol}.`, true);
+                        showSubscriptionMessage(`Errore durante la disiscrizione da ${symbol}.`, 'error');
                     }
                 } else {
                     console.log(`Non sottoscritto a ${symbol} (tentativo da modale).`);
-                    showSubscriptionMessage(`Non sei sottoscritto a ${symbol}.`, true); // Messaggio di errore se non è sottoscritto
+                    showSubscriptionMessage(`Non sei sottoscritto a ${symbol}.`, 'error'); // Messaggio di errore se non è sottoscritto
                 }
             }
         });
