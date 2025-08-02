@@ -197,6 +197,15 @@
             background-clip: text;
         }
 
+        .obscured-balance {
+            filter: blur(5px); /* Offusca il testo */
+            transition: filter 0.3s ease;
+        }
+
+        .obscured-balance:hover {
+            filter: blur(0); /* Rimuove l'offuscamento al passaggio del mouse per una rapida visuale */
+        }
+
         .decline-percentage {
             background: rgba(255,255,255,0.08); /* slightly lighter background */
             padding: 10px;
@@ -295,10 +304,6 @@
             color: white;
             font-size: 1.1em;
             padding: 1rem;
-        }
-
-        #liveToast.bg-success, #liveToast.bg-danger, #liveToast.bg-info {
-            /* background-color: transparent !important; Disabilita i colori di sfondo di Bootstrap */
         }
 
         /* Stile per rendere i Toast simili al modale */
@@ -494,7 +499,10 @@
             </div>
             <div class="stat-item">
                 <h6>USDC Balance</h6>
-                <small id="totalBalanceValue">Loading...</small>
+                <small>
+                    <span id="totalBalanceValue">Loading...</span>
+                    <i id="toggleBalanceVisibility" class="fas fa-eye ms-2" style="cursor: pointer; color: rgba(255,255,255,0.7);"></i>
+                </small>
             </div>
         </div>
 
@@ -630,6 +638,37 @@
             }
         }
 
+        // Variabile per lo stato di offuscamento del saldo
+        let isBalanceObscured = false;
+
+        // Funzioni per gestire la persistenza dello stato di offuscamento
+        function saveBalanceObscurityState() {
+            localStorage.setItem('isBalanceObscured', isBalanceObscured);
+        }
+
+        function loadBalanceObscurityState() {
+            const storedState = localStorage.getItem('isBalanceObscured');
+            if (storedState !== null) {
+                isBalanceObscured = (storedState === 'true');
+            }
+        }
+
+        // Funzione per applicare/rimuovere l'offuscamento e cambiare l'icona
+        function applyBalanceObscurityState() {
+            const balanceValueElement = document.getElementById('totalBalanceValue');
+            const toggleIcon = document.getElementById('toggleBalanceVisibility');
+
+            if (isBalanceObscured) {
+                balanceValueElement.classList.add('obscured-balance');
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                balanceValueElement.classList.remove('obscured-balance');
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        }
+
         // Original JavaScript code with enhancements
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/tickerHub")
@@ -641,6 +680,9 @@
         const closeModalButton = document.getElementById('closeModal');
         const tickerList = document.getElementById('tickerList');
         const currentSymbolSpan = document.getElementById('currentSymbol');
+        const declineInput = document.getElementById('declinePercentageInput'); // Dichiarato qui
+        const savePercentageButton = document.getElementById('savePercentageButton'); // Dichiarato qui
+        const modalUnsubscribeButton = document.getElementById('modalUnsubscribeButton'); // Dichiarato qui
 
         const klineIntervals = [
             "OneMinute", "ThreeMinutes", "FiveMinutes", "FifteenMinutes",
@@ -891,6 +933,10 @@
 
                 await populateCryptoSymbols();
                 
+                // Carica lo stato di offuscamento del saldo e applicalo
+                loadBalanceObscurityState();
+                applyBalanceObscurityState();
+
                 // Sottoscrivi a tutti i simboli nel set (inclusi quelli caricati da localStorage)
                 for (const symbol of subscribedSymbols) {
                     // Crea o aggiorna la card per il simbolo subito, prima di sottoscriverlo
@@ -971,10 +1017,22 @@
         // Aggiorna il saldo USDC ogni 30 secondi (o un intervallo appropriato)
         setInterval(updateUSDCBalance, 30000);
 
+        // Event listener per il toggle dell'occhiolino
+        document.getElementById('toggleBalanceVisibility').addEventListener('click', () => {
+            isBalanceObscured = !isBalanceObscured; // Inverti lo stato
+            applyBalanceObscurityState(); // Applica il nuovo stato
+            saveBalanceObscurityState(); // Salva lo stato in localStorage
+        });
+
+        // Funzionalità del popup
+        // const settingsModal = document.getElementById('settingsModal'); // Rimosso: Dichiarato in alto
+        // const declineInput = document.getElementById('declinePercentageInput'); // Rimosso: Dichiarato in alto
+        // const savePercentageButton = document.getElementById('savePercentageButton'); // Rimosso: Dichiarato in alto
+        // const modalUnsubscribeButton = document.getElementById('modalUnsubscribeButton'); // Rimosso: Dichiarato in alto
+
         // Funzione per mostrare il modale delle impostazioni
         function updateSettingsModal(symbol) {
             currentSymbolSpan.innerText = symbol;
-            const declineInput = document.getElementById('declinePercentageInput');
             declineInput.value = cryptoPercentages[symbol] || ''; // Carica la percentuale salvata o stringa vuota
 
             settingsModal.classList.add('show');
@@ -1001,9 +1059,8 @@
         });
 
         // Logica per il pulsante Salva Percentuale nel modale
-        document.getElementById('savePercentageButton').addEventListener('click', () => {
+        savePercentageButton.addEventListener('click', () => {
             const symbol = document.getElementById('currentSymbol').innerText;
-            const declineInput = document.getElementById('declinePercentageInput');
             const percentage = parseFloat(declineInput.value);
 
             if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
@@ -1066,7 +1123,7 @@
         }
 
         // Logica per il pulsante di disiscrizione nel modale
-        document.getElementById('modalUnsubscribeButton').addEventListener('click', async () => {
+        modalUnsubscribeButton.addEventListener('click', async () => {
             const symbol = document.getElementById('currentSymbol').innerText;
             
             // Sostituisci il confirm() nativo con il modale personalizzato
