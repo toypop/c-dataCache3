@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "c#dataCache3": { // Questo è il nome del tuo progetto
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5000;https://localhost:7028", // Assicurati che queste porte corrispondano a quelle che usi o desideri
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

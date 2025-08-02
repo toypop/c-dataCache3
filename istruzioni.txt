@@ -1,1 +1,5 @@
-perfetto, ora io voglio vedere i ticker non piu da consolle, ma da una pagina web, un grosso div sfondo blu con scritta bianca che riporta il valore di btcusdt in tempo reale    
+per impostare variabili ambiente: 
+    dotnet user-secrets set "Binance:ApiKey" ""
+
+per leggerle
+    dotnet user-secrets list
