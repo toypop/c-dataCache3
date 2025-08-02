@@ -635,10 +635,30 @@
 
         function populateKlineIntervals() {
             const select = document.getElementById('klineIntervalSelect');
+            select.innerHTML = ''; // Pulisci le opzioni esistenti
+
+            const intervalMap = {
+                "OneMinute": "1 min",
+                "ThreeMinutes": "3 min",
+                "FiveMinutes": "5 min",
+                "FifteenMinutes": "15 min",
+                "ThirtyMinutes": "30 min",
+                "OneHour": "1 hour",
+                "TwoHour": "2 hours",
+                "FourHour": "4 hours",
+                "SixHour": "6 hours",
+                "EightHour": "8 hours",
+                "TwelveHour": "12 hours",
+                "OneDay": "1 day",
+                "ThreeDay": "3 days",
+                "OneWeek": "1 week",
+                "OneMonth": "1 month"
+            };
+
             klineIntervals.forEach(interval => {
                 const option = document.createElement('option');
                 option.value = interval;
-                option.innerText = interval.replace('Minute', 'm').replace('Hour', 'h').replace('Day', 'd').replace('ThreeDay', '3d').replace('OneWeek', '1w').replace('OneMonth', '1M');
+                option.innerText = intervalMap[interval] || interval; // Usa la mappatura o il valore originale se non trovato
                 select.appendChild(option);
             });
         }
