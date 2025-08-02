@@ -481,7 +481,7 @@
                 <small id="connectionStatusText" class="text-success">Online</small>
             </div>
             <div class="stat-item">
-                <h6>USDT Balance</h6>
+                <h6>USDC Balance</h6>
                 <small id="totalBalanceValue">Loading...</small>
             </div>
         </div>
@@ -592,15 +592,15 @@
             document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
         }
 
-        // Funzione per aggiornare il saldo USDT
-        async function updateUSDTBalance() {
+        // Funzione per aggiornare il saldo USDC
+        async function updateUSDCBalance() {
             try {
-                const usdtBalance = await connection.invoke("GetUSDTBalance");
-                document.getElementById('totalBalanceValue').textContent = `$${usdtBalance.toFixed(2)}`;
+                const usdcBalance = await connection.invoke("GetUSDCBalance"); // Chiamata al nuovo metodo
+                document.getElementById('totalBalanceValue').textContent = `$${usdcBalance.toFixed(2)}`;
             } catch (err) {
-                console.error("Errore nel recupero del saldo USDT:", err);
+                console.error("Errore nel recupero del saldo USDC:", err);
                 document.getElementById('totalBalanceValue').textContent = "Errore";
-                showSubscriptionMessage("Impossibile recuperare il saldo USDT.", 'error');
+                showSubscriptionMessage("Impossibile recuperare il saldo USDC.", 'error'); // Messaggio aggiornato
             }
         }
 
@@ -866,7 +866,7 @@
                 }
                 
                 updateActiveTickersCount(); // Aggiorna il contatore dopo la sottoscrizione iniziale/caricamento
-                updateUSDTBalance(); // Chiama la funzione per aggiornare il saldo USDT all'avvio
+                updateUSDCBalance(); // Chiama la funzione per aggiornare il saldo USDC all'avvio
 
             } catch (err) {
                 console.error(err);
@@ -881,8 +881,8 @@
 
         start();
 
-        // Aggiorna il saldo USDT ogni 30 secondi (o un intervallo appropriato)
-        setInterval(updateUSDTBalance, 30000);
+        // Aggiorna il saldo USDC ogni 30 secondi (o un intervallo appropriato)
+        setInterval(updateUSDCBalance, 30000);
 
         // Funzionalità del popup
         const settingsModal = document.getElementById('settingsModal');

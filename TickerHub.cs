@@ -61,10 +61,10 @@ namespace BinanceDataCacheApp
         /// Recupera il saldo USDT dell'utente.
         /// </summary>
         /// <returns>Il saldo disponibile in USDT.</returns>
-        public async Task<decimal> GetUSDTBalance()
+        public async Task<decimal> GetUSDCBalance() // Metodo rinominato
         {
-            _logger.LogInformation("Richiesta saldo USDT.");
-            return await _streamManager.GetAssetBalanceAsync("USDT");
+            _logger.LogInformation("Richiesta saldo USDC.");
+            return await _streamManager.GetAssetBalanceAsync("USDC");
         }
 
         // Questo metodo non è più necessario in quanto l'HubContext viene iniettato nel HostedService
