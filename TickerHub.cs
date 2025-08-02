@@ -53,7 +53,18 @@ namespace BinanceDataCacheApp
         public async Task<List<string>> GetAvailableSymbols()
         {
             _logger.LogInformation("Richiesta simboli disponibili dal client.");
-            return await _streamManager.GetAllSymbolsAsync();
+            // return await _streamManager.GetAllSymbolsAsync();
+            return await _streamManager.GetAvailableSymbolsAsync();
+        }
+
+        /// <summary>
+        /// Recupera il saldo USDT dell'utente.
+        /// </summary>
+        /// <returns>Il saldo disponibile in USDT.</returns>
+        public async Task<decimal> GetUSDTBalance()
+        {
+            _logger.LogInformation("Richiesta saldo USDT.");
+            return await _streamManager.GetAssetBalanceAsync("USDT");
         }
 
         // Questo metodo non è più necessario in quanto l'HubContext viene iniettato nel HostedService

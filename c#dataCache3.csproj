@@ -6,6 +6,7 @@
     <RootNamespace>c_dataCache3</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UserSecretsId>a822bd4a-68ff-43ce-a1fe-9e7d58539d83</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

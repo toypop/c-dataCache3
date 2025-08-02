@@ -25,6 +25,12 @@ using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Aggiungi User Secrets in fase di sviluppo
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddUserSecrets<Program>();
+}
+
 // Configurazione del logging
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();

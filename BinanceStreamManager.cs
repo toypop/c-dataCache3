@@ -11,6 +11,7 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Collections.Generic;
 using Binance.Net.Objects.Models.Spot; // Aggiunto per BinanceSymbol
+using Microsoft.Extensions.Configuration; // Aggiunto per accedere alla configurazione
 
 namespace BinanceDataCacheApp
 {
@@ -34,21 +35,42 @@ namespace BinanceDataCacheApp
         /// Costruttore del manager stream
         /// </summary>
         /// <param name="logger">Logger per il debugging</param>
-        public BinanceStreamManager(ILogger<BinanceStreamManager> logger = null)
+        /// <param name="configuration">Configurazione dell'applicazione per le API Key</param>
+        public BinanceStreamManager(ILogger<BinanceStreamManager> logger, IConfiguration configuration)
         {
             _logger = logger;
             _cache = BinanceDataCache.Instance;
             
-            // Inizializza il client socket di Binance
-            _socketClient = new BinanceSocketClient();
-            _restClient = new BinanceRestClient(); // Inizializza il client REST
+            // Recupera le API Key dalla configurazione
+            var apiKey = configuration["Binance:ApiKey"];
+            var secretKey = configuration["Binance:SecretKey"];
+
+            // Verifica che le API Key e Secret Key siano state caricate
+            if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(secretKey))
+            {
+                _logger.LogCritical("Binance API Key o Secret Key non configurate. Assicurati di averle impostate tramite User Secrets (dotnet user-secrets set \"Binance:ApiKey\" \"YOUR_API_KEY\").");
+                throw new InvalidOperationException("Binance API Key o Secret Key non configurate.");
+            }
+
+            // Inizializza il client socket di Binance con le credenziali
+            // Anche se gli stream pubblici non le richiedono, è buona pratica per consistenza e futuri stream privati
+            _socketClient = new BinanceSocketClient(options =>
+            {
+                options.ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(apiKey, secretKey);
+            });
+            
+            // Inizializza il client REST di Binance con le credenziali
+            _restClient = new BinanceRestClient(options =>
+            {
+                options.ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(apiKey, secretKey);
+            });
         }
 
         /// <summary>
         /// Recupera tutti i simboli di trading disponibili da Binance.
         /// </summary>
         /// <returns>Una lista di stringhe contenente i simboli, o una lista vuota in caso di errore.</returns>
-        public async Task<List<string>> GetAllSymbolsAsync()
+        public async Task<List<string>> GetAvailableSymbolsAsync() // Metodo rinominato
         {
             try
             {
@@ -112,6 +134,34 @@ namespace BinanceDataCacheApp
             {
                 _logger?.LogError(ex, $"Eccezione durante avvio ticker stream per {symbol}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Recupera il saldo disponibile di un asset specifico (es. USDT).
+        /// </summary>
+        /// <param name="asset">L'asset di cui recuperare il saldo (es. "USDT")</param>
+        /// <returns>Il saldo disponibile dell'asset, o 0 se non trovato o in caso di errore.</returns>
+        public async Task<decimal> GetAssetBalanceAsync(string asset)
+        {
+            try
+            {
+                var accountInfo = await _restClient.SpotApi.Account.GetAccountInfoAsync();
+                if (accountInfo.Success && accountInfo.Data != null)
+                {
+                    var balance = accountInfo.Data.Balances.FirstOrDefault(b => b.Asset.Equals(asset, StringComparison.OrdinalIgnoreCase));
+                    return balance?.Available ?? 0;
+                }
+                else
+                {
+                    _logger?.LogError($"Errore nel recuperare le informazioni del conto per il saldo di {asset}: {accountInfo.Error?.Message}");
+                    return 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"Eccezione durante il recupero del saldo di {asset}");
+                return 0;
             }
         }
 

@@ -480,6 +480,10 @@
                 <h6>Connection</h6>
                 <small id="connectionStatusText" class="text-success">Online</small>
             </div>
+            <div class="stat-item">
+                <h6>USDT Balance</h6>
+                <small id="totalBalanceValue">Loading...</small>
+            </div>
         </div>
 
         <!-- Dashboard -->
@@ -586,6 +590,18 @@
         function updateLastUpdateTime() {
             const now = new Date();
             document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
+        }
+
+        // Funzione per aggiornare il saldo USDT
+        async function updateUSDTBalance() {
+            try {
+                const usdtBalance = await connection.invoke("GetUSDTBalance");
+                document.getElementById('totalBalanceValue').textContent = `$${usdtBalance.toFixed(2)}`;
+            } catch (err) {
+                console.error("Errore nel recupero del saldo USDT:", err);
+                document.getElementById('totalBalanceValue').textContent = "Errore";
+                showSubscriptionMessage("Impossibile recuperare il saldo USDT.", 'error');
+            }
         }
 
         // Original JavaScript code with enhancements
@@ -850,6 +866,7 @@
                 }
                 
                 updateActiveTickersCount(); // Aggiorna il contatore dopo la sottoscrizione iniziale/caricamento
+                updateUSDTBalance(); // Chiama la funzione per aggiornare il saldo USDT all'avvio
 
             } catch (err) {
                 console.error(err);
@@ -863,6 +880,9 @@
         });
 
         start();
+
+        // Aggiorna il saldo USDT ogni 30 secondi (o un intervallo appropriato)
+        setInterval(updateUSDTBalance, 30000);
 
         // Funzionalità del popup
         const settingsModal = document.getElementById('settingsModal');
