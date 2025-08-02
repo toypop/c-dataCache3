@@ -197,6 +197,18 @@
             background-clip: text;
         }
 
+        .decline-percentage {
+            background: rgba(255,255,255,0.08); /* slightly lighter background */
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 1rem; /* Slightly larger than kline-info */
+            font-weight: 600; /* Bolder text */
+            color: #FFD700; /* Gold color for warning/attention */
+            border-left: 6px solid #FFD700; /* Matching left border */
+            margin-top: 15px; /* Spacing from price */
+            margin-bottom: 15px; /* Spacing from kline info */
+        }
+
         .kline-info {
             background: rgba(255,255,255,0.1);
             padding: 15px;
@@ -497,6 +509,7 @@
                 <div class="ticker-card fade-in" id="BTCUSDT_display">
                     <div class="ticker-symbol">BTCUSDT</div>
                     <div class="ticker-price">Loading...</div>
+                    <div class="decline-percentage" id="BTCUSDT_decline_percentage">-</div> <!-- Nuovo campo per la percentuale -->
                     <div class="kline-info" id="BTCUSDT_kline_display">
                         Seleziona un intervallo e clicca "Mostra Kline" per visualizzare i dati
                     </div>
@@ -518,6 +531,16 @@
                 <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
                 <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
                 <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
+
+                <div class="mb-3 mt-4">
+                    <label for="declinePercentageInput" class="form-label text-white">Percentuale di discesa (%):</label>
+                    <input type="number" id="declinePercentageInput" class="form-control" placeholder="Es. 5 per 5%">
+                </div>
+                <div class="d-grid">
+                    <button id="savePercentageButton" class="btn btn-custom">
+                        <i class="fas fa-save me-2"></i>Salva Percentuale
+                    </button>
+                </div>
 
                 <div class="d-grid mt-4">
                     <button id="modalUnsubscribeButton" class="btn btn-outline-custom">
@@ -583,6 +606,9 @@
         // Counter for active tickers
         let activeTickersCount = 0; // Questa variabile non è più usata direttamente per il conteggio
 
+        // Nuovo: Oggetto per tenere traccia delle percentuali di discesa per ogni crypto
+        const cryptoPercentages = {};
+
         function updateActiveTickersCount() {
             document.getElementById('activeTickers').textContent = subscribedSymbols.size; // Aggiorna dal Set
         }
@@ -610,6 +636,12 @@
             .configureLogging(signalR.LogLevel.Information)
             .build();
 
+        // Variabili globali per il modale (spostate qui per accessibilità)
+        const settingsModal = document.getElementById('settingsModal');
+        const closeModalButton = document.getElementById('closeModal');
+        const tickerList = document.getElementById('tickerList');
+        const currentSymbolSpan = document.getElementById('currentSymbol');
+
         const klineIntervals = [
             "OneMinute", "ThreeMinutes", "FiveMinutes", "FifteenMinutes",
             "ThirtyMinutes", "OneHour", "TwoHour", "FourHour",
@@ -630,6 +662,18 @@
             if (storedSymbols) {
                 const symbolsArray = JSON.parse(storedSymbols);
                 symbolsArray.forEach(symbol => subscribedSymbols.add(symbol));
+            }
+        }
+
+        // Nuovo: Funzioni per gestire la persistenza delle percentuali di discesa
+        function saveCryptoPercentages() {
+            localStorage.setItem('cryptoPercentages', JSON.stringify(cryptoPercentages));
+        }
+
+        function loadCryptoPercentages() {
+            const storedPercentages = localStorage.getItem('cryptoPercentages');
+            if (storedPercentages) {
+                Object.assign(cryptoPercentages, JSON.parse(storedPercentages));
             }
         }
 
@@ -764,11 +808,18 @@
                         tickerElement.innerHTML = `
                             <div class="ticker-symbol">${symbol}</div>
                             <div class="ticker-price">Loading...</div>
+                            <div class="decline-percentage" id="${symbol}_decline_percentage">-</div> <!-- Nuovo campo per la percentuale -->
                             <div class="kline-info" id="${symbol}_kline_display">
                                 Seleziona un intervallo e clicca "Mostra Kline" per visualizzare i dati
                             </div>
                         `;
                         document.getElementById('tickerList').appendChild(tickerElement);
+                    }
+                    // Imposta la percentuale di discesa se presente
+                    if (cryptoPercentages[symbol] !== undefined) {
+                        document.getElementById(`${symbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[symbol]}%`;
+                    } else {
+                        document.getElementById(`${symbol}_decline_percentage`).textContent = `-`; // O un valore di default
                     }
 
                 } catch (err) {
@@ -836,6 +887,7 @@
                 populateKlineIntervals();
 
                 loadSubscribedSymbols(); // Carica i simboli salvati
+                loadCryptoPercentages(); // Carica le percentuali salvate
 
                 await populateCryptoSymbols();
                 
@@ -850,12 +902,20 @@
                         tickerElement.innerHTML = `
                             <div class="ticker-symbol">${symbol}</div>
                             <div class="ticker-price">Loading...</div>
+                            <div class="decline-percentage" id="${symbol}_decline_percentage">-</div> <!-- Nuovo campo per la percentuale -->
                             <div class="kline-info" id="${symbol}_kline_display">
                                 Seleziona un intervallo e clicca "Mostra Kline" per visualizzare i dati
                             </div>
                         `;
                         document.getElementById('tickerList').appendChild(tickerElement);
                     }
+                    // Imposta la percentuale di discesa se presente
+                    if (cryptoPercentages[symbol] !== undefined) {
+                        document.getElementById(`${symbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[symbol]}%`;
+                    } else {
+                        document.getElementById(`${symbol}_decline_percentage`).textContent = `-`; // O un valore di default
+                    }
+
                     await connection.invoke("SubscribeToTicker", symbol);
                     console.log(`Riconnesso e sottoscritto a: ${symbol}`);
                 }
@@ -876,11 +936,18 @@
                             tickerElement.innerHTML = `
                                 <div class="ticker-symbol">${defaultSymbol}</div>
                                 <div class="ticker-price">Loading...</div>
+                                <div class="decline-percentage" id="${defaultSymbol}_decline_percentage">-</div> <!-- Nuovo campo per la percentuale -->
                                 <div class="kline-info" id="${defaultSymbol}_kline_display">
                                     Seleziona un intervallo e clicca "Mostra Kline" per visualizzare i dati
                                 </div>
                             `;
                             document.getElementById('tickerList').appendChild(tickerElement);
+                        }
+                        // Imposta la percentuale di discesa se presente anche per la card di default
+                        if (cryptoPercentages[defaultSymbol] !== undefined) {
+                            document.getElementById(`${defaultSymbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[defaultSymbol]}%`;
+                        } else {
+                            document.getElementById(`${defaultSymbol}_decline_percentage`).textContent = `-`;
                         }
                     }
                 }
@@ -904,19 +971,21 @@
         // Aggiorna il saldo USDC ogni 30 secondi (o un intervallo appropriato)
         setInterval(updateUSDCBalance, 30000);
 
-        // Funzionalità del popup
-        const settingsModal = document.getElementById('settingsModal');
-        const closeModalButton = document.getElementById('closeModal');
-        const tickerList = document.getElementById('tickerList');
-        const currentSymbolSpan = document.getElementById('currentSymbol');
+        // Funzione per mostrare il modale delle impostazioni
+        function updateSettingsModal(symbol) {
+            currentSymbolSpan.innerText = symbol;
+            const declineInput = document.getElementById('declinePercentageInput');
+            declineInput.value = cryptoPercentages[symbol] || ''; // Carica la percentuale salvata o stringa vuota
+
+            settingsModal.classList.add('show');
+        }
 
         // Apri il modale quando si clicca su una ticker card
         tickerList.addEventListener('click', function(event) {
             let targetCard = event.target.closest('.ticker-card');
             if (targetCard) {
                 const symbol = targetCard.querySelector('.ticker-symbol').innerText;
-                currentSymbolSpan.innerText = symbol;
-                settingsModal.classList.add('show');
+                updateSettingsModal(symbol); // Usa la nuova funzione per aprire e popolare il modale
             }
         });
 
@@ -928,6 +997,29 @@
         settingsModal.addEventListener('click', function(event) {
             if (event.target === settingsModal) {
                 settingsModal.classList.remove('show');
+            }
+        });
+
+        // Logica per il pulsante Salva Percentuale nel modale
+        document.getElementById('savePercentageButton').addEventListener('click', () => {
+            const symbol = document.getElementById('currentSymbol').innerText;
+            const declineInput = document.getElementById('declinePercentageInput');
+            const percentage = parseFloat(declineInput.value);
+
+            if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
+                cryptoPercentages[symbol] = percentage;
+                saveCryptoPercentages();
+                showSubscriptionMessage(`Percentuale di discesa del ${percentage}% salvata per ${symbol}.`, 'success');
+                settingsModal.classList.remove('show'); // Chiudi il modale dopo il salvataggio
+
+                // Aggiorna la percentuale sulla ticker card
+                const percentageDisplay = document.getElementById(`${symbol}_decline_percentage`);
+                if (percentageDisplay) {
+                    percentageDisplay.textContent = `Discesa: ${percentage}%`;
+                }
+
+            } else {
+                showSubscriptionMessage('Inserisci una percentuale valida (0-100).', 'error');
             }
         });
 
