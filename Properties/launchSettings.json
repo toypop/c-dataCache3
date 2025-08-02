@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "c#dataCache3": { // Questo è il nome del tuo progetto
+    "c#dataCache3": { 
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
