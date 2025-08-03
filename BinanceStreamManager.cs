@@ -10,24 +10,102 @@ using Binance.Net.Interfaces;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Collections.Generic;
-using Binance.Net.Objects.Models.Spot; // Aggiunto per BinanceSymbol
-using Microsoft.Extensions.Configuration; // Aggiunto per accedere alla configurazione
+using Binance.Net.Objects.Models.Spot;
+using Microsoft.Extensions.Configuration;
+using CryptoExchange.Net.Authentication; // Aggiunto per ApiCredentials
 
 namespace BinanceDataCacheApp
 {
+    /// <summary>
+    /// Classe interna per raggruppare tutte le connessioni e sottoscrizioni per un singolo simbolo
+    /// </summary>
+    internal class SymbolStreamGroup : IDisposable
+    {
+        public string Symbol { get; }
+        public IBinanceSocketClient TickerClient { get; }
+        public IBinanceSocketClient KlineShortTermClient { get; } // Per 1m, 5m, 15m
+        public IBinanceSocketClient KlineLongTermClient { get; }  // Per 1h, 4h, 1d
+
+        public UpdateSubscription TickerSubscription { get; set; }
+        public ConcurrentDictionary<KlineInterval, UpdateSubscription> KlineShortTermSubscriptions { get; } = new();
+        public ConcurrentDictionary<KlineInterval, UpdateSubscription> KlineLongTermSubscriptions { get; } = new();
+
+        private readonly ILogger _logger;
+
+        public SymbolStreamGroup(string symbol, ApiCredentials credentials, ILogger logger)
+        {
+            Symbol = symbol;
+            _logger = logger;
+
+            // Inizializza i client socket dedicati per questo simbolo
+            TickerClient = new BinanceSocketClient(options => { options.ApiCredentials = credentials; });
+            KlineShortTermClient = new BinanceSocketClient(options => { options.ApiCredentials = credentials; });
+            KlineLongTermClient = new BinanceSocketClient(options => { options.ApiCredentials = credentials; });
+        }
+
+        public async Task StopAllSymbolStreamsAsync()
+        {
+            try
+            {
+                var closeTasks = new List<Task>();
+
+                if (TickerSubscription != null)
+                {
+                    closeTasks.Add(TickerSubscription.CloseAsync());
+                    TickerSubscription = null;
+                }
+
+                foreach (var sub in KlineShortTermSubscriptions.Values)
+                {
+                    closeTasks.Add(sub.CloseAsync());
+                }
+                KlineShortTermSubscriptions.Clear();
+
+                foreach (var sub in KlineLongTermSubscriptions.Values)
+                {
+                    closeTasks.Add(sub.CloseAsync());
+                }
+                KlineLongTermSubscriptions.Clear();
+
+                await Task.WhenAll(closeTasks);
+                _logger.LogInformation($"Tutti gli stream per {Symbol} sono stati fermati.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Errore durante l'arresto degli stream per {Symbol}.");
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                StopAllSymbolStreamsAsync().GetAwaiter().GetResult(); // Sincrono per Dispose
+                TickerClient?.Dispose();
+                KlineShortTermClient?.Dispose();
+                KlineLongTermClient?.Dispose();
+            }
+        }
+    }
+
     /// <summary>
     /// Manager per gestire le connessioni WebSocket a Binance e popolare la cache
     /// </summary>
     public class BinanceStreamManager : IDisposable
     {
-        private readonly IBinanceSocketClient _socketClient;
         private readonly ILogger<BinanceStreamManager> _logger;
         private readonly BinanceDataCache _cache;
-        private readonly BinanceRestClient _restClient; // Nuovo: per chiamate REST
+        private readonly BinanceRestClient _restClient;
+        private readonly ApiCredentials _apiCredentials; // Credenziali API memorizzate una volta
         
-        // Riferimenti alle sottoscrizioni attive per poterle chiudere
-        private readonly ConcurrentDictionary<string, UpdateSubscription> _tickerSubscriptions = new();
-        private readonly ConcurrentDictionary<string, UpdateSubscription> _klineSubscriptions = new();
+        // Nuovo: Dizionario per gestire i gruppi di stream per ogni simbolo
+        private readonly ConcurrentDictionary<string, SymbolStreamGroup> _symbolStreamGroups = new();
         
         private bool _disposed = false;
 
@@ -41,28 +119,20 @@ namespace BinanceDataCacheApp
             _logger = logger;
             _cache = BinanceDataCache.Instance;
             
-            // Recupera le API Key dalla configurazione
             var apiKey = configuration["Binance:ApiKey"];
             var secretKey = configuration["Binance:SecretKey"];
 
-            // Verifica che le API Key e Secret Key siano state caricate
             if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(secretKey))
             {
                 _logger.LogCritical("Binance API Key o Secret Key non configurate. Assicurati di averle impostate tramite User Secrets (dotnet user-secrets set \"Binance:ApiKey\" \"YOUR_API_KEY\").");
                 throw new InvalidOperationException("Binance API Key o Secret Key non configurate.");
             }
+            _apiCredentials = new ApiCredentials(apiKey, secretKey); // Inizializza le credenziali una volta
 
-            // Inizializza il client socket di Binance con le credenziali
-            // Anche se gli stream pubblici non le richiedono, è buona pratica per consistenza e futuri stream privati
-            _socketClient = new BinanceSocketClient(options =>
-            {
-                options.ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(apiKey, secretKey);
-            });
-            
-            // Inizializza il client REST di Binance con le credenziali
+            // Inizializza il client REST di Binance con le credenziali (REST client rimane unico)
             _restClient = new BinanceRestClient(options =>
             {
-                options.ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(apiKey, secretKey);
+                options.ApiCredentials = _apiCredentials;
             });
         }
 
@@ -70,14 +140,14 @@ namespace BinanceDataCacheApp
         /// Recupera tutti i simboli di trading disponibili da Binance.
         /// </summary>
         /// <returns>Una lista di stringhe contenente i simboli, o una lista vuota in caso di errore.</returns>
-        public async Task<List<string>> GetAvailableSymbolsAsync() // Metodo rinominato
+        public async Task<List<string>> GetAvailableSymbolsAsync()
         {
             try
             {
                 var exchangeInfo = await _restClient.SpotApi.ExchangeData.GetExchangeInfoAsync();
                 if (exchangeInfo.Success && exchangeInfo.Data != null)
                 {
-                    return exchangeInfo.Data.Symbols.Select(s => s.Name).ToList(); // Modificato da s.Symbol a s.Name
+                    return exchangeInfo.Data.Symbols.Select(s => s.Name).ToList();
                 }
                 else
                 {
@@ -105,28 +175,32 @@ namespace BinanceDataCacheApp
                 return false;
             }
 
-            // Se siamo già sottoscritti a questo simbolo, non fare nulla
-            if (_tickerSubscriptions.ContainsKey(symbol.ToUpperInvariant()))
+            string upperSymbol = symbol.ToUpperInvariant();
+            if (_symbolStreamGroups.ContainsKey(upperSymbol))
             {
-                _logger?.LogInformation($"Già sottoscritto al ticker stream per {symbol}");
-                return true;
+                _logger?.LogInformation($"Gruppo stream per {symbol} già esistente, ticker stream già sottoscritto.");
+                return true; // Il ticker è già gestito all'interno del gruppo esistente
             }
 
             try
             {
-                // Sottoscrizione al ticker stream di Binance
-                var subscriptionResult = await _socketClient.SpotApi.ExchangeData
-                    .SubscribeToTickerUpdatesAsync(new[] { symbol }, OnTickerUpdate);                
+                var streamGroup = new SymbolStreamGroup(upperSymbol, _apiCredentials, _logger);
+                
+                // Sottoscrizione al ticker stream di Binance con il client dedicato
+                var subscriptionResult = await streamGroup.TickerClient.SpotApi.ExchangeData
+                    .SubscribeToTickerUpdatesAsync(new[] { upperSymbol }, OnTickerUpdate);                
 
                 if (subscriptionResult.Success)
                 {
-                    _tickerSubscriptions.TryAdd(symbol.ToUpperInvariant(), subscriptionResult.Data);
+                    streamGroup.TickerSubscription = subscriptionResult.Data;
+                    _symbolStreamGroups.TryAdd(upperSymbol, streamGroup);
                     _logger?.LogInformation($"Ticker stream avviato per {symbol}");
                     return true;
                 }
                 else
                 {
                     _logger?.LogError($"Errore avvio ticker stream per {symbol}: {subscriptionResult.Error?.Message}");
+                    streamGroup.Dispose(); // Pulisci il gruppo se fallisce
                     return false;
                 }
             }
@@ -135,6 +209,85 @@ namespace BinanceDataCacheApp
                 _logger?.LogError(ex, $"Eccezione durante avvio ticker stream per {symbol}");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Avvia gli stream kline specifici per un simbolo, divisi in breve e lungo termine.
+        /// Questo metodo deve essere chiamato DOPO StartTickerStreamAsync.
+        /// </summary>
+        /// <param name="symbol">Il simbolo per cui avviare gli stream kline.</param>
+        /// <param name="shortTermIntervals">Lista di intervalli kline per il client a breve termine (es. 1m, 5m, 15m).</param>
+        /// <param name="longTermIntervals">Lista di intervalli kline per il client a lungo termine (es. 1h, 4h, 1d).</param>
+        /// <returns>True se tutti gli stream kline sono stati avviati con successo, altrimenti False.</returns>
+        public async Task<bool> StartKlineStreamsForSymbolAsync(string symbol, IEnumerable<KlineInterval> shortTermIntervals, IEnumerable<KlineInterval> longTermIntervals)
+        {
+            string upperSymbol = symbol.ToUpperInvariant();
+            if (!_symbolStreamGroups.TryGetValue(upperSymbol, out var streamGroup))
+            {
+                _logger?.LogError($"Gruppo stream non trovato per il simbolo {symbol}. Impossibile avviare stream kline.");
+                return false;
+            }
+
+            bool allSucceeded = true;
+
+            // Avvia stream kline a breve termine
+            foreach (var interval in shortTermIntervals)
+            {
+                string key = $"{upperSymbol}_{interval}";
+                if (streamGroup.KlineShortTermSubscriptions.ContainsKey(interval)) continue;
+
+                try
+                {
+                    var subscriptionResult = await streamGroup.KlineShortTermClient.SpotApi.ExchangeData
+                        .SubscribeToKlineUpdatesAsync(upperSymbol, interval, OnKlineUpdate);
+
+                    if (subscriptionResult.Success)
+                    {
+                        streamGroup.KlineShortTermSubscriptions.TryAdd(interval, subscriptionResult.Data);
+                        _logger?.LogInformation($"Kline stream avviato per {symbol} - {interval} (Breve Termine)");
+                    }
+                    else
+                    {
+                        _logger?.LogError($"Errore avvio kline stream per {symbol}-{interval}: {subscriptionResult.Error?.Message}");
+                        allSucceeded = false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, $"Eccezione durante avvio kline stream per {symbol}-{interval} (Breve Termine)");
+                    allSucceeded = false;
+                }
+            }
+
+            // Avvia stream kline a lungo termine
+            foreach (var interval in longTermIntervals)
+            {
+                string key = $"{upperSymbol}_{interval}";
+                if (streamGroup.KlineLongTermSubscriptions.ContainsKey(interval)) continue;
+
+                try
+                {
+                    var subscriptionResult = await streamGroup.KlineLongTermClient.SpotApi.ExchangeData
+                        .SubscribeToKlineUpdatesAsync(upperSymbol, interval, OnKlineUpdate);
+
+                    if (subscriptionResult.Success)
+                    {
+                        streamGroup.KlineLongTermSubscriptions.TryAdd(interval, subscriptionResult.Data);
+                        _logger?.LogInformation($"Kline stream avviato per {symbol} - {interval} (Lungo Termine)");
+                    }
+                    else
+                    {
+                        _logger?.LogError($"Errore avvio kline stream per {symbol}-{interval}: {subscriptionResult.Error?.Message}");
+                        allSucceeded = false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, $"Eccezione durante avvio kline stream per {symbol}-{interval} (Lungo Termine)");
+                    allSucceeded = false;
+                }
+            }
+            return allSucceeded;
         }
 
         /// <summary>
@@ -172,86 +325,31 @@ namespace BinanceDataCacheApp
         /// <returns>True se la sottoscrizione è stata fermata con successo</returns>
         public async Task<bool> StopTickerStreamAsync(string symbol)
         {
-            if (string.IsNullOrEmpty(symbol))
+            string upperSymbol = symbol.ToUpperInvariant();
+            if (_symbolStreamGroups.TryRemove(upperSymbol, out var streamGroup))
             {
-                return false;
-            }
-
-            if (_tickerSubscriptions.TryRemove(symbol.ToUpperInvariant(), out var subscription))
-            {
-                await subscription.CloseAsync();
-                _logger?.LogInformation($"Ticker stream fermato per {symbol}");
+                await streamGroup.StopAllSymbolStreamsAsync(); // Ferma tutti gli stream del gruppo
+                streamGroup.Dispose(); // Dispone i client socket
+                _logger?.LogInformation($"Tutti gli stream per il simbolo {symbol} sono stati fermati e disposti.");
                 return true;
             }
             return false;
         }
 
-        /// <summary>
-        /// Avvia lo stream kline per un simbolo e intervallo specifici
-        /// </summary>
-        /// <param name="symbol">Simbolo da monitorare</param>
-        /// <param name="interval">Intervallo delle candele</param>
-        /// <returns>True se la sottoscrizione è avvenuta con successo</returns>
+        // Questo metodo non sarà più usato direttamente dall'hub, ma la sua logica è stata incorporata in StartKlineStreamsForSymbolAsync
+        // Rimane per ora ma sarà rimosso o modificato in futuro se non più necessario.
         public async Task<bool> StartKlineStreamAsync(string symbol, KlineInterval interval)
         {
-            if (string.IsNullOrEmpty(symbol))
-            {
-                _logger?.LogError("Simbolo non valido per kline stream");
-                return false;
-            }
-
-            string key = $"{symbol.ToUpperInvariant()}_{interval}";
-            if (_klineSubscriptions.ContainsKey(key))
-            {
-                _logger?.LogInformation($"Già sottoscritto al kline stream per {symbol}-{interval}");
-                return true;
-            }
-
-            try
-            {
-                var subscriptionResult = await _socketClient.SpotApi.ExchangeData
-                    .SubscribeToKlineUpdatesAsync(symbol, interval, OnKlineUpdate);
-
-                if (subscriptionResult.Success)
-                {
-                    _klineSubscriptions.TryAdd(key, subscriptionResult.Data);
-                    _logger?.LogInformation($"Kline stream avviato per {symbol} - {interval}");
-                    return true;
-                }
-                else
-                {
-                    _logger?.LogError($"Errore avvio kline stream per {symbol}: {subscriptionResult.Error?.Message}");
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, $"Eccezione durante avvio kline stream per {symbol}");
-                return false;
-            }
+            _logger.LogWarning($"StartKlineStreamAsync obsoleto per {symbol}-{interval}. Usare StartKlineStreamsForSymbolAsync.");
+            return false; // Forziamo l'uso del nuovo metodo
         }
 
-        /// <summary>
-        /// Ferma lo stream kline per un simbolo e intervallo specifici
-        /// </summary>
-        /// <param name="symbol">Simbolo da fermare</param>
-        /// <param name="interval">Intervallo della candela da fermare</param>
-        /// <returns>True se la sottoscrizione è stata fermata con successo</returns>
+        // Questo metodo non sarà più usato direttamente dall'hub, ma la sua logica è stata incorporata in StopTickerStreamAsync.
+        // Rimane per ora ma sarà rimosso o modificato in futuro se non più necessario.
         public async Task<bool> StopKlineStreamAsync(string symbol, KlineInterval interval)
         {
-            if (string.IsNullOrEmpty(symbol))
-            {
-                return false;
-            }
-
-            string key = $"{symbol.ToUpperInvariant()}_{interval}";
-            if (_klineSubscriptions.TryRemove(key, out var subscription))
-            {
-                await subscription.CloseAsync();
-                _logger?.LogInformation($"Kline stream fermato per {symbol}-{interval}");
-                return true;
-            }
-            return false;
+            _logger.LogWarning($"StopKlineStreamAsync obsoleto per {symbol}-{interval}. Usare StopTickerStreamAsync per fermare tutti gli stream del simbolo.");
+            return false; // Forziamo l'uso del nuovo metodo
         }
 
         /// <summary>
@@ -262,8 +360,6 @@ namespace BinanceDataCacheApp
             try
             {
                 var tick = tickerEvent.Data;
-                
-                // Crea un oggetto TickerData e lo memorizza nella cache
                 var tickerData = new TickerData(
                     tick.Symbol,
                     tick.LastPrice,
@@ -271,9 +367,7 @@ namespace BinanceDataCacheApp
                     tick.PriceChange,
                     tick.PriceChangePercent
                 );
-
                 _cache.SetTickerData(tickerData);
-                
                 _logger?.LogDebug($"Ticker aggiornato: {tick.Symbol} = ${tick.LastPrice}");
             }
             catch (Exception ex)
@@ -289,8 +383,7 @@ namespace BinanceDataCacheApp
         {
             try
             {
-                var kline = klineEvent.Data.Data; // Binance wrappa i dati kline
-                
+                var kline = klineEvent.Data.Data;
                 var klineData = new KlineData(
                     klineEvent.Symbol,
                     kline.Interval,
@@ -301,11 +394,9 @@ namespace BinanceDataCacheApp
                     kline.LowPrice,
                     kline.ClosePrice,
                     kline.Volume,
-                    kline.Final  // Indica se la candela è chiusa
+                    kline.Final
                 );
-
                 _cache.SetKlineData(klineData);
-                
                 _logger?.LogDebug($"Kline aggiornata: {klineEvent.Symbol} {kline.Interval} - " +
                                  $"Close: ${kline.ClosePrice} (Final: {kline.Final})");
             }
@@ -316,27 +407,30 @@ namespace BinanceDataCacheApp
         }
 
         /// <summary>
-        /// Ferma tutti gli stream attivi
+        /// Ferma tutti gli stream attivi di TUTTI i simboli
         /// </summary>
         public async Task StopAllStreamsAsync()
         {
             try
             {
-                // Chiudi tutte le sottoscrizioni ticker
-                var closeTickerTasks = _tickerSubscriptions.Values.Select(s => s.CloseAsync()).ToList();
-                await Task.WhenAll(closeTickerTasks);
-                _tickerSubscriptions.Clear();
+                var closeTasks = new List<Task>();
+                foreach (var streamGroup in _symbolStreamGroups.Values)
+                {
+                    closeTasks.Add(streamGroup.StopAllSymbolStreamsAsync());
+                }
+                await Task.WhenAll(closeTasks);
+                
+                foreach (var streamGroup in _symbolStreamGroups.Values)
+                {
+                    streamGroup.Dispose(); // Dispone i client socket per ogni gruppo
+                }
+                _symbolStreamGroups.Clear();
 
-                // Chiudi tutte le sottoscrizioni kline
-                var closeKlineTasks = _klineSubscriptions.Values.Select(s => s.CloseAsync()).ToList();
-                await Task.WhenAll(closeKlineTasks);
-                _klineSubscriptions.Clear();
-
-                _logger?.LogInformation("Tutti gli stream sono stati fermati");
+                _logger?.LogInformation("Tutti gli stream per tutti i simboli sono stati fermati e disposti.");
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Errore durante la chiusura degli stream");
+                _logger?.LogError(ex, "Errore durante la chiusura di tutti gli stream");
             }
         }
 
@@ -353,26 +447,20 @@ namespace BinanceDataCacheApp
             {
                 try
                 {
-                    // Ferma gli stream in modo sincrono (non ideale ma necessario per Dispose)
-                    foreach (var subscription in _tickerSubscriptions.Values)
+                    // Ferma tutti gli stream in modo sincrono per il Dispose
+                    foreach (var streamGroup in _symbolStreamGroups.Values)
                     {
-                        subscription.CloseAsync().GetAwaiter().GetResult();
+                        streamGroup.StopAllSymbolStreamsAsync().GetAwaiter().GetResult();
+                        streamGroup.Dispose(); // Assicurati che anche i client vengano disposti
                     }
-                    _tickerSubscriptions.Clear();
-
-                    foreach (var subscription in _klineSubscriptions.Values)
-                    {
-                        subscription.CloseAsync().GetAwaiter().GetResult();
-                    }
-                    _klineSubscriptions.Clear();
+                    _symbolStreamGroups.Clear();
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogError(ex, "Errore durante dispose degli stream");
+                    _logger?.LogError(ex, "Errore durante dispose degli stream manager");
                 }
 
-                _socketClient?.Dispose();
-                _restClient?.Dispose(); // Smaltisci anche il client REST
+                _restClient?.Dispose();
                 _disposed = true;
             }
         }

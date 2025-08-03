@@ -24,13 +24,37 @@ namespace BinanceDataCacheApp
         public async Task SubscribeToTicker(string symbol)
         {
             _logger.LogInformation($"Client sottoscritto a: {symbol}");
-            await _streamManager.StartTickerStreamAsync(symbol);
+            bool tickerSubscribed = await _streamManager.StartTickerStreamAsync(symbol);
+
+            if (tickerSubscribed)
+            {
+                // Definisci gli intervalli Kline per breve e lungo termine
+                var shortTermIntervals = new List<KlineInterval> { KlineInterval.OneMinute, KlineInterval.FiveMinutes, KlineInterval.FifteenMinutes };
+                var longTermIntervals = new List<KlineInterval> { KlineInterval.OneHour, KlineInterval.FourHour, KlineInterval.OneDay };
+
+                bool klinesStarted = await _streamManager.StartKlineStreamsForSymbolAsync(symbol, shortTermIntervals, longTermIntervals);
+
+                if (klinesStarted)
+                {
+                    _logger.LogInformation($"Stream Kline avviati con successo per {symbol}.");
+                }
+                else
+                {
+                    _logger.LogError($"Errore nell'avvio degli stream Kline per {symbol}. Potrebbero esserci problemi di connessione.");
+                    // Considera di disiscrivere il ticker se i Kline non partono, a seconda della logica desiderata
+                }
+            }
+            else
+            {
+                _logger.LogWarning($"Sottoscrizione ticker per {symbol} non riuscita o già esistente. Non avvio stream Kline.");
+            }
         }
 
         // Metodo chiamato dal client per disiscriversi da un ticker
         public async Task UnsubscribeFromTicker(string symbol)
         {
             _logger.LogInformation($"Client disiscritto da: {symbol}");
+            // StopTickerStreamAsync ora ferma tutti gli stream associati a quel simbolo
             await _streamManager.StopTickerStreamAsync(symbol);
         }
 
@@ -39,11 +63,10 @@ namespace BinanceDataCacheApp
         {
             _logger.LogInformation($"Richiesta dati Kline per {symbol} - {interval}");
 
-            // Assicurati che lo stream Kline sia avviato per questo simbolo e intervallo
-            await _streamManager.StartKlineStreamAsync(symbol, interval);
-            
-            // Recupera i dati dalla cache (potrebbero non essere immediatamente disponibili se lo stream è appena iniziato)
-            return _cache.GetKlineData(symbol, interval);
+            // Non è più necessario avviare lo stream qui, si assume che sia già avviato
+            // se il ticker è sottoscritto. Recupera direttamente dalla cache.
+            // return _cache.GetKlineData(symbol, interval);
+            return await Task.FromResult(_cache.GetKlineData(symbol, interval));
         }
 
         /// <summary>
