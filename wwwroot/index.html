@@ -456,6 +456,8 @@
         </div>
 
         <!-- Kline Controls -->
+        <!-- Rimosso: Gestione automatica dei Kline stream tramite sottoscrizione ticker -->
+        <!--
         <div class="control-section">
             <h5><i class="fas fa-chart-bar"></i> Kline Data</h5>
             <div class="mb-3">
@@ -470,6 +472,7 @@
                 </button>
             </div>
         </div>
+        -->
 
         <!-- Connection Status -->
         <div class="control-section">
@@ -536,9 +539,6 @@
             <div class="modal-body">
                 <!-- Contenuto dei settaggi verrà inserito qui -->
                 <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
-                <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
-                <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
-                <p>Qui andranno i settaggi specifici per il ticker selezionato.</p>
 
                 <div class="mb-3 mt-4">
                     <label for="declinePercentageInput" class="form-label text-white">Percentuale di discesa (%):</label>
@@ -547,6 +547,19 @@
                 <div class="d-grid">
                     <button id="savePercentageButton" class="btn btn-custom">
                         <i class="fas fa-save me-2"></i>Salva Percentuale
+                    </button>
+                </div>
+
+                <div class="mb-3 mt-4">
+                    <label for="modalKlineIntervalSelect" class="form-label text-white">Mostra Kline su card:</label>
+                    <select id="modalKlineIntervalSelect" class="form-select">
+                        <!-- Opzioni intervallo Kline saranno popolate da JS -->
+                    </select>
+                </div>
+
+                <div class="d-grid mt-2">
+                    <button id="showSelectedKlineButton" class="btn btn-custom">
+                        <i class="fas fa-chart-area me-2"></i>Visualizza Kline Selezionata
                     </button>
                 </div>
 
@@ -593,32 +606,59 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
     <script>
-        // Mobile sidebar toggle
-        document.getElementById('sidebarToggle').addEventListener('click', function() {
-            document.getElementById('sidebar').classList.toggle('show');
-        });
+        // ====================================================================
+        // --- DICHIARAZIONI VARIABILI E FUNZIONI GLOBALI (RIORGANIZZATE) ---
+        // ====================================================================
 
-        // Close sidebar when clicking outside on mobile
-        document.addEventListener('click', function(event) {
-            const sidebar = document.getElementById('sidebar');
-            const toggle = document.getElementById('sidebarToggle');
-            
-            if (window.innerWidth <= 768 && 
-                !sidebar.contains(event.target) && 
-                !toggle.contains(event.target) && 
-                sidebar.classList.contains('show')) {
-                sidebar.classList.remove('show');
-            }
-        });
+        // Elementi DOM del Modale Impostazioni
+        const settingsModal = document.getElementById('settingsModal');
+        const closeModalButton = document.getElementById('closeModal');
+        const tickerList = document.getElementById('tickerList');
+        const currentSymbolSpan = document.getElementById('currentSymbol');
+        const declinePercentageInput = document.getElementById('declinePercentageInput');
+        const savePercentageButton = document.getElementById('savePercentageButton');
+        const modalUnsubscribeButton = document.getElementById('modalUnsubscribeButton');
+        const modalKlineIntervalSelect = document.getElementById('modalKlineIntervalSelect');
+        const showSelectedKlineButton = document.getElementById('showSelectedKlineButton');
+        const totalBalanceValueElement = document.getElementById('totalBalanceValue');
+        const toggleBalanceVisibilityIcon = document.getElementById('toggleBalanceVisibility');
+        const liveToast = document.getElementById('liveToast');
+        const toastBody = document.getElementById('toastBody');
+        const toastTitle = document.getElementById('toastTitle');
+        const confirmationModal = document.getElementById('confirmationModal');
+        const confirmationMessageElement = document.getElementById('confirmationMessage');
+        const confirmButton = document.getElementById('confirmButton');
+        const cancelButton = document.getElementById('cancelButton');
+        const closeConfirmationModalButton = document.getElementById('closeConfirmationModal');
 
-        // Counter for active tickers
-        let activeTickersCount = 0; // Questa variabile non è più usata direttamente per il conteggio
-
-        // Nuovo: Oggetto per tenere traccia delle percentuali di discesa per ogni crypto
+        // Variabili di Stato Globali
+        let isBalanceObscured = false;
+        const subscribedSymbols = new Set();
         const cryptoPercentages = {};
+        const selectedKlineIntervals = {};
+
+        // Dati Costanti
+        const availableKlineIntervals = [
+            "OneMinute", "FiveMinutes", "FifteenMinutes",
+            "OneHour", "FourHour", "OneDay"
+        ];
+        const intervalMap = {
+            "OneMinute": "1 min", "FiveMinutes": "5 min", "FifteenMinutes": "15 min",
+            "OneHour": "1 hour", "FourHour": "4 hours", "OneDay": "1 day"
+        };
+
+        // Connessione SignalR
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/tickerHub")
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+        // ====================================================================
+        // --- FUNZIONI UTILITY E DI GESTIONE DATI ---
+        // ====================================================================
 
         function updateActiveTickersCount() {
-            document.getElementById('activeTickers').textContent = subscribedSymbols.size; // Aggiorna dal Set
+            document.getElementById('activeTickers').textContent = subscribedSymbols.size;
         }
 
         function updateLastUpdateTime() {
@@ -626,466 +666,37 @@
             document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
         }
 
-        // Funzione per aggiornare il saldo USDC
-        async function updateUSDCBalance() {
-            try {
-                const usdcBalance = await connection.invoke("GetUSDCBalance"); // Chiamata al nuovo metodo
-                document.getElementById('totalBalanceValue').textContent = `$${usdcBalance.toFixed(2)}`;
-            } catch (err) {
-                console.error("Errore nel recupero del saldo USDC:", err);
-                document.getElementById('totalBalanceValue').textContent = "Errore";
-                showSubscriptionMessage("Impossibile recuperare il saldo USDC.", 'error'); // Messaggio aggiornato
-            }
-        }
-
-        // Variabile per lo stato di offuscamento del saldo
-        let isBalanceObscured = false;
-
-        // Funzioni per gestire la persistenza dello stato di offuscamento
-        function saveBalanceObscurityState() {
-            localStorage.setItem('isBalanceObscured', isBalanceObscured);
-        }
-
-        function loadBalanceObscurityState() {
-            const storedState = localStorage.getItem('isBalanceObscured');
-            if (storedState !== null) {
-                isBalanceObscured = (storedState === 'true');
-            }
-        }
-
-        // Funzione per applicare/rimuovere l'offuscamento e cambiare l'icona
-        function applyBalanceObscurityState() {
-            const balanceValueElement = document.getElementById('totalBalanceValue');
-            const toggleIcon = document.getElementById('toggleBalanceVisibility');
-
-            if (isBalanceObscured) {
-                balanceValueElement.classList.add('obscured-balance');
-                toggleIcon.classList.remove('fa-eye');
-                toggleIcon.classList.add('fa-eye-slash');
-            } else {
-                balanceValueElement.classList.remove('obscured-balance');
-                toggleIcon.classList.remove('fa-eye-slash');
-                toggleIcon.classList.add('fa-eye');
-            }
-        }
-
-        // Original JavaScript code with enhancements
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl("/tickerHub")
-            .configureLogging(signalR.LogLevel.Information)
-            .build();
-
-        // Variabili globali per il modale (spostate qui per accessibilità)
-        const settingsModal = document.getElementById('settingsModal');
-        const closeModalButton = document.getElementById('closeModal');
-        const tickerList = document.getElementById('tickerList');
-        const currentSymbolSpan = document.getElementById('currentSymbol');
-        const declineInput = document.getElementById('declinePercentageInput'); // Dichiarato qui
-        const savePercentageButton = document.getElementById('savePercentageButton'); // Dichiarato qui
-        const modalUnsubscribeButton = document.getElementById('modalUnsubscribeButton'); // Dichiarato qui
-
-        const klineIntervals = [
-            "OneMinute", "ThreeMinutes", "FiveMinutes", "FifteenMinutes",
-            "ThirtyMinutes", "OneHour", "TwoHour", "FourHour",
-            "SixHour", "EightHour", "TwelveHour", "OneDay",
-            "ThreeDay", "OneWeek", "OneMonth"
-        ];
-
-        // Nuovo: Set per tenere traccia dei simboli sottoscritti
-        const subscribedSymbols = new Set();
-
-        // Funzioni per gestire la persistenza dei simboli sottoscritti
-        function saveSubscribedSymbols() {
-            localStorage.setItem('subscribedSymbols', JSON.stringify(Array.from(subscribedSymbols)));
-        }
-
-        function loadSubscribedSymbols() {
-            const storedSymbols = localStorage.getItem('subscribedSymbols');
-            if (storedSymbols) {
-                const symbolsArray = JSON.parse(storedSymbols);
-                symbolsArray.forEach(symbol => subscribedSymbols.add(symbol));
-            }
-        }
-
-        // Nuovo: Funzioni per gestire la persistenza delle percentuali di discesa
-        function saveCryptoPercentages() {
-            localStorage.setItem('cryptoPercentages', JSON.stringify(cryptoPercentages));
-        }
-
-        function loadCryptoPercentages() {
-            const storedPercentages = localStorage.getItem('cryptoPercentages');
-            if (storedPercentages) {
-                Object.assign(cryptoPercentages, JSON.parse(storedPercentages));
-            }
-        }
-
-        function populateKlineIntervals() {
-            const select = document.getElementById('klineIntervalSelect');
-            select.innerHTML = ''; // Pulisci le opzioni esistenti
-
-            const intervalMap = {
-                "OneMinute": "1 min",
-                "ThreeMinutes": "3 min",
-                "FiveMinutes": "5 min",
-                "FifteenMinutes": "15 min",
-                "ThirtyMinutes": "30 min",
-                "OneHour": "1 hour",
-                "TwoHour": "2 hours",
-                "FourHour": "4 hours",
-                "SixHour": "6 hours",
-                "EightHour": "8 hours",
-                "TwelveHour": "12 hours",
-                "OneDay": "1 day",
-                "ThreeDay": "3 days",
-                "OneWeek": "1 week",
-                "OneMonth": "1 month"
-            };
-
-            klineIntervals.forEach(interval => {
-                const option = document.createElement('option');
-                option.value = interval;
-                option.innerText = intervalMap[interval] || interval; // Usa la mappatura o il valore originale se non trovato
-                select.appendChild(option);
-            });
-        }
-
-        async function populateCryptoSymbols() {
-            console.log("Attempting to populate crypto symbols...");
-            const select = document.getElementById('cryptoSelect');
-            select.innerHTML = ''; // Pulisci le opzioni esistenti
-            try {
-                console.log("Invoking GetAvailableSymbols on server...");
-                const symbols = await connection.invoke("GetAvailableSymbols");
-                console.log("Symbols received:", symbols);
-                if (symbols && symbols.length > 0) {
-                    // Ordina i simboli alfabeticamente
-                    symbols.sort((a, b) => a.localeCompare(b));
-                    symbols.forEach(symbol => {
-                        const option = document.createElement('option');
-                        option.value = symbol;
-                        option.innerText = symbol;
-                        select.appendChild(option);
-                    });
-                    if (symbols.includes("BTCUSDT")) {
-                        select.value = "BTCUSDT";
-                    }
-                    console.log("Crypto symbols populated successfully.");
-                } else {
-                    console.warn("No symbols received or symbols array is empty.");
-                }
-            } catch (err) {
-                console.error("Error populating crypto symbols:", err);
-            }
-        }
-
-        connection.on("ReceiveTickerUpdate", (tickerData) => {
-            console.log("ReceiveTickerUpdate received:", tickerData);
-            const tickerId = `${tickerData.symbol}_display`;
-            let tickerElement = document.getElementById(tickerId);
-            
-            if (tickerElement) { // Solo aggiorna se l'elemento esiste già
-                console.log(`Updating existing ticker element for ${tickerData.symbol} with ID: ${tickerId}`);
-                tickerElement.querySelector('.ticker-price').innerText = `$${tickerData.price.toFixed(2)}`;
-            }
-            // Non creare nuove card qui, dovrebbero essere create all'avvio per i simboli sottoscritti
-            
-            updateLastUpdateTime();
-        });
-
-        connection.on("ReceiveKlineUpdate", (klineData) => {
-            // Questo listener non è strettamente necessario per la richiesta singola,
-            // ma se volessimo stream di kline, li gestirebbe qui.
-        });
-
-        function showSubscriptionMessage(message, type = 'info') { // type: 'success', 'error', 'info'
-            const toastElement = document.getElementById('liveToast');
-            const toastBody = document.getElementById('toastBody');
-            const toastTitle = document.getElementById('toastTitle');
-
+        function showSubscriptionMessage(message, type = 'info') { // type: 'success', 'error', 'info', 'warning'
             toastBody.textContent = message;
             toastTitle.textContent = "Notifica"; // Titolo di default
 
-            // Rimuovi classi di tipo precedenti dal toastBody e dal toastElement
-            toastBody.classList.remove('text-success', 'text-danger', 'text-info', 'border-start', 'border-success', 'border-danger', 'border-info', 'border-5');
-            toastElement.classList.remove('bg-success', 'bg-danger', 'bg-info'); // Rimuovi solo bg-classi, text-white rimane per lo stile generale
-            toastElement.classList.add('text-white'); // Assicura che il testo del toast sia bianco
+            toastBody.classList.remove('text-success', 'text-danger', 'text-info', 'text-warning');
+            liveToast.classList.remove('bg-success', 'bg-danger', 'bg-info', 'bg-warning');
+            liveToast.classList.add('text-white'); // Assicura che il testo del toast sia bianco
 
             switch (type) {
                 case 'success':
                     toastTitle.textContent = "Successo!";
-                    toastElement.classList.add('bg-success');
+                    liveToast.classList.add('bg-success');
                     break;
                 case 'error':
                     toastTitle.textContent = "Errore!";
-                    toastElement.classList.add('bg-danger');
+                    liveToast.classList.add('bg-danger');
+                    break;
+                case 'warning':
+                    toastTitle.textContent = "Avviso!";
+                    liveToast.classList.add('bg-warning');
                     break;
                 case 'info':
                 default:
                     toastTitle.textContent = "Informazione";
-                    toastElement.classList.add('bg-info');
+                    liveToast.classList.add('bg-info');
                     break;
             }
             
-            const toast = new bootstrap.Toast(toastElement, { delay: 5000 }); // 5 secondi per test
+            const toast = new bootstrap.Toast(liveToast, { delay: 5000 }); // 5 secondi per test
             toast.show();
         }
-
-        document.getElementById('subscribeButton').addEventListener('click', async () => {
-            const symbol = document.getElementById('cryptoSelect').value;
-            if (symbol && !subscribedSymbols.has(symbol)) { // Evita sottoscrizioni duplicate nel set
-                try {
-                    await connection.invoke("SubscribeToTicker", symbol);
-                    subscribedSymbols.add(symbol); // Aggiungi al set
-                    saveSubscribedSymbols(); // Salva le modifiche
-                    updateActiveTickersCount(); // Aggiorna il contatore
-                    console.log(`Sottoscritto a ${symbol}`);
-                    showSubscriptionMessage(`Sottoscritto a ${symbol} con successo!`, 'success');
-
-                    // Crea o aggiorna la card per il simbolo appena sottoscritto
-                    let tickerElement = document.getElementById(`${symbol}_display`);
-                    if (!tickerElement) {
-                        tickerElement = document.createElement('div');
-                        tickerElement.id = `${symbol}_display`;
-                        tickerElement.className = 'ticker-card fade-in';
-                        tickerElement.innerHTML = `
-                            <div class="ticker-symbol">${symbol}</div>
-                            <div class="ticker-price">Loading...</div>
-                            <div class="decline-percentage" id="${symbol}_decline_percentage">-</div> <!-- Nuovo campo per la percentuale -->
-                            <div class="kline-info" id="${symbol}_kline_display">
-                                Seleziona un intervallo e clicca "Mostra Kline" per visualizzare i dati
-                            </div>
-                        `;
-                        document.getElementById('tickerList').appendChild(tickerElement);
-                    }
-                    // Imposta la percentuale di discesa se presente
-                    if (cryptoPercentages[symbol] !== undefined) {
-                        document.getElementById(`${symbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[symbol]}%`;
-                    } else {
-                        document.getElementById(`${symbol}_decline_percentage`).textContent = `-`; // O un valore di default
-                    }
-
-                } catch (err) {
-                    console.error(`Errore durante la sottoscrizione a ${symbol}:`, err);
-                    showSubscriptionMessage(`Errore durante la sottoscrizione a ${symbol}.`, 'error');
-                }
-            } else if (subscribedSymbols.has(symbol)) {
-                console.log(`Già sottoscritto a ${symbol}.`);
-                showSubscriptionMessage(`Sei già sottoscritto a ${symbol}.`, 'info'); // Messaggio informativo
-            }
-        });
-
-        document.getElementById('unsubscribeButton').addEventListener('click', async () => {
-            const symbol = document.getElementById('cryptoSelect').value;
-            if (symbol && subscribedSymbols.has(symbol)) { // Controlla se il simbolo è nel set
-                try {
-                    await connection.invoke("UnsubscribeFromTicker", symbol);
-                    subscribedSymbols.delete(symbol); // Rimuovi dal set
-                    saveSubscribedSymbols(); // Salva le modifiche
-                    updateActiveTickersCount(); // Aggiorna il contatore
-                    console.log(`Disiscritto da ${symbol}`);
-                    showSubscriptionMessage(`Disiscritto da ${symbol} con successo!`, 'success');
-                    const tickerElement = document.getElementById(`${symbol}_display`);
-                    if (tickerElement) {
-                        tickerElement.remove();
-                    }
-                } catch (err) {
-                    console.error(`Errore durante la disiscrizione da ${symbol}:`, err);
-                    showSubscriptionMessage(`Errore durante la disiscrizione da ${symbol}.`, 'error');
-                }
-            } else {
-                console.log(`Non sottoscritto a ${symbol}.`);
-                showSubscriptionMessage(`Non sei sottoscritto a ${symbol}.`, 'error'); // Messaggio di errore se non è sottoscritto
-            }
-        });
-
-        document.getElementById('showKlineButton').addEventListener('click', async () => {
-            const symbol = document.getElementById('cryptoSelect').value;
-            const interval = document.getElementById('klineIntervalSelect').value;
-            try {
-                const klineData = await connection.invoke("GetKlineData", symbol, interval);
-                const klineDisplayElement = document.getElementById(`${symbol}_kline_display`);
-                if (klineDisplayElement) {
-                    if (klineData) {
-                        const intervalDisplay = interval.replace('Minute', 'm').replace('Hour', 'h').replace('Day', 'd').replace('ThreeDay', '3d').replace('OneWeek', '1w').replace('OneMonth', '1M');
-                        klineDisplayElement.innerHTML = `
-                            <strong>Kline Data (${intervalDisplay})</strong><br>
-                            <i class="fas fa-arrow-up me-1"></i>Open: $${klineData.openPrice.toFixed(2)}<br>
-                            <i class="fas fa-arrow-down me-1"></i>Close: $${klineData.closePrice.toFixed(2)}
-                        `;
-                    } else {
-                        klineDisplayElement.innerHTML = `<strong>Kline Data:</strong> N/A`;
-                    }
-                }
-                console.log(`Richiesta Kline per ${symbol} ${interval}:`, klineData);
-            } catch (err) {
-                console.error(`Errore durante il recupero dei dati Kline per ${symbol} ${interval}:`, err);
-            }
-        });
-
-        async function start() {
-            try {
-                await connection.start();
-                console.log("SignalR Connected.");
-                populateKlineIntervals();
-
-                loadSubscribedSymbols(); // Carica i simboli salvati
-                loadCryptoPercentages(); // Carica le percentuali salvate
-
-                await populateCryptoSymbols();
-                
-                // Carica lo stato di offuscamento del saldo e applicalo
-                loadBalanceObscurityState();
-                applyBalanceObscurityState();
-
-                // Sottoscrivi a tutti i simboli nel set (inclusi quelli caricati da localStorage)
-                for (const symbol of subscribedSymbols) {
-                    // Crea o aggiorna la card per il simbolo subito, prima di sottoscriverlo
-                    let tickerElement = document.getElementById(`${symbol}_display`);
-                    if (!tickerElement) {
-                        tickerElement = document.createElement('div');
-                        tickerElement.id = `${symbol}_display`;
-                        tickerElement.className = 'ticker-card fade-in';
-                        tickerElement.innerHTML = `
-                            <div class="ticker-symbol">${symbol}</div>
-                            <div class="ticker-price">Loading...</div>
-                            <div class="decline-percentage" id="${symbol}_decline_percentage">-</div> <!-- Nuovo campo per la percentuale -->
-                            <div class="kline-info" id="${symbol}_kline_display">
-                                Seleziona un intervallo e clicca "Mostra Kline" per visualizzare i dati
-                            </div>
-                        `;
-                        document.getElementById('tickerList').appendChild(tickerElement);
-                    }
-                    // Imposta la percentuale di discesa se presente
-                    if (cryptoPercentages[symbol] !== undefined) {
-                        document.getElementById(`${symbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[symbol]}%`;
-                    } else {
-                        document.getElementById(`${symbol}_decline_percentage`).textContent = `-`; // O un valore di default
-                    }
-
-                    await connection.invoke("SubscribeToTicker", symbol);
-                    console.log(`Riconnesso e sottoscritto a: ${symbol}`);
-                }
-
-                // Se il set è vuoto dopo il caricamento, sottoscrivi comunque a BTCUSDT per default
-                if (subscribedSymbols.size === 0) {
-                    const defaultSymbol = document.getElementById('cryptoSelect').value;
-                    if (defaultSymbol) {
-                        await connection.invoke("SubscribeToTicker", defaultSymbol);
-                        subscribedSymbols.add(defaultSymbol);
-                        console.log(`Sottoscritto a simbolo di default: ${defaultSymbol}`);
-                        // Assicurati che anche la card di default sia creata se non c'è
-                        let tickerElement = document.getElementById(`${defaultSymbol}_display`);
-                        if (!tickerElement) {
-                            tickerElement = document.createElement('div');
-                            tickerElement.id = `${defaultSymbol}_display`;
-                            tickerElement.className = 'ticker-card fade-in';
-                            tickerElement.innerHTML = `
-                                <div class="ticker-symbol">${defaultSymbol}</div>
-                                <div class="ticker-price">Loading...</div>
-                                <div class="decline-percentage" id="${defaultSymbol}_decline_percentage">-</div> <!-- Nuovo campo per la percentuale -->
-                                <div class="kline-info" id="${defaultSymbol}_kline_display">
-                                    Seleziona un intervallo e clicca "Mostra Kline" per visualizzare i dati
-                                </div>
-                            `;
-                            document.getElementById('tickerList').appendChild(tickerElement);
-                        }
-                        // Imposta la percentuale di discesa se presente anche per la card di default
-                        if (cryptoPercentages[defaultSymbol] !== undefined) {
-                            document.getElementById(`${defaultSymbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[defaultSymbol]}%`;
-                        } else {
-                            document.getElementById(`${defaultSymbol}_decline_percentage`).textContent = `-`;
-                        }
-                    }
-                }
-                
-                updateActiveTickersCount(); // Aggiorna il contatore dopo la sottoscrizione iniziale/caricamento
-                updateUSDCBalance(); // Chiama la funzione per aggiornare il saldo USDC all'avvio
-
-            } catch (err) {
-                console.error(err);
-                setTimeout(start, 5000);
-            }
-        };
-
-        connection.onclose(async (error) => {
-            console.log("SignalR Disconnected. Reconnecting...");
-            setTimeout(start, 5000);
-        });
-
-        start();
-
-        // Aggiorna il saldo USDC ogni 30 secondi (o un intervallo appropriato)
-        setInterval(updateUSDCBalance, 30000);
-
-        // Event listener per il toggle dell'occhiolino
-        document.getElementById('toggleBalanceVisibility').addEventListener('click', () => {
-            isBalanceObscured = !isBalanceObscured; // Inverti lo stato
-            applyBalanceObscurityState(); // Applica il nuovo stato
-            saveBalanceObscurityState(); // Salva lo stato in localStorage
-        });
-
-        // Funzionalità del popup
-        // const settingsModal = document.getElementById('settingsModal'); // Rimosso: Dichiarato in alto
-        // const declineInput = document.getElementById('declinePercentageInput'); // Rimosso: Dichiarato in alto
-        // const savePercentageButton = document.getElementById('savePercentageButton'); // Rimosso: Dichiarato in alto
-        // const modalUnsubscribeButton = document.getElementById('modalUnsubscribeButton'); // Rimosso: Dichiarato in alto
-
-        // Funzione per mostrare il modale delle impostazioni
-        function updateSettingsModal(symbol) {
-            currentSymbolSpan.innerText = symbol;
-            declineInput.value = cryptoPercentages[symbol] || ''; // Carica la percentuale salvata o stringa vuota
-
-            settingsModal.classList.add('show');
-        }
-
-        // Apri il modale quando si clicca su una ticker card
-        tickerList.addEventListener('click', function(event) {
-            let targetCard = event.target.closest('.ticker-card');
-            if (targetCard) {
-                const symbol = targetCard.querySelector('.ticker-symbol').innerText;
-                updateSettingsModal(symbol); // Usa la nuova funzione per aprire e popolare il modale
-            }
-        });
-
-        // Chiudi il modale quando si clicca sul pulsante di chiusura o sull'overlay
-        closeModalButton.addEventListener('click', function() {
-            settingsModal.classList.remove('show');
-        });
-
-        settingsModal.addEventListener('click', function(event) {
-            if (event.target === settingsModal) {
-                settingsModal.classList.remove('show');
-            }
-        });
-
-        // Logica per il pulsante Salva Percentuale nel modale
-        savePercentageButton.addEventListener('click', () => {
-            const symbol = document.getElementById('currentSymbol').innerText;
-            const percentage = parseFloat(declineInput.value);
-
-            if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
-                cryptoPercentages[symbol] = percentage;
-                saveCryptoPercentages();
-                showSubscriptionMessage(`Percentuale di discesa del ${percentage}% salvata per ${symbol}.`, 'success');
-                settingsModal.classList.remove('show'); // Chiudi il modale dopo il salvataggio
-
-                // Aggiorna la percentuale sulla ticker card
-                const percentageDisplay = document.getElementById(`${symbol}_decline_percentage`);
-                if (percentageDisplay) {
-                    percentageDisplay.textContent = `Discesa: ${percentage}%`;
-                }
-
-            } else {
-                showSubscriptionMessage('Inserisci una percentuale valida (0-100).', 'error');
-            }
-        });
-
-        // Funzione per mostrare il modale di conferma personalizzato
-        const confirmationModal = document.getElementById('confirmationModal');
-        const confirmationMessageElement = document.getElementById('confirmationMessage');
-        const confirmButton = document.getElementById('confirmButton');
-        const cancelButton = document.getElementById('cancelButton');
-        const closeConfirmationModalButton = document.getElementById('closeConfirmationModal');
 
         function showConfirmationDialog(message) {
             return new Promise(resolve => {
@@ -1112,23 +723,352 @@
                 cancelButton.addEventListener('click', onCancel);
                 closeConfirmationModalButton.addEventListener('click', onCancel);
 
-                // Chiudi anche cliccando sull'overlay
                 confirmationModal.addEventListener('click', function handler(event) {
                     if (event.target === confirmationModal) {
                         onCancel();
-                        confirmationModal.removeEventListener('click', handler); // Rimuovi il listener dopo l'uso
+                        confirmationModal.removeEventListener('click', handler);
                     }
                 });
             });
         }
 
+        function populateModalKlineIntervals() {
+            modalKlineIntervalSelect.innerHTML = '';
+            availableKlineIntervals.forEach(interval => {
+                const option = document.createElement('option');
+                option.value = interval;
+                option.innerText = intervalMap[interval] || interval;
+                modalKlineIntervalSelect.appendChild(option);
+            });
+        }
+
+        // ====================================================================
+        // --- FUNZIONI DI PERSISTENZA DATI (localStorage) ---
+        // ====================================================================
+
+        function saveSubscribedSymbols() {
+            localStorage.setItem('subscribedSymbols', JSON.stringify(Array.from(subscribedSymbols)));
+        }
+
+        function loadSubscribedSymbols() {
+            const storedSymbols = localStorage.getItem('subscribedSymbols');
+            if (storedSymbols) {
+                const symbolsArray = JSON.parse(storedSymbols);
+                symbolsArray.forEach(symbol => subscribedSymbols.add(symbol));
+            }
+        }
+
+        function saveCryptoPercentages() {
+            localStorage.setItem('cryptoPercentages', JSON.stringify(cryptoPercentages));
+        }
+
+        function loadCryptoPercentages() {
+            const storedPercentages = localStorage.getItem('cryptoPercentages');
+            if (storedPercentages) {
+                Object.assign(cryptoPercentages, JSON.parse(storedPercentages));
+            }
+        }
+
+        function saveSelectedKlineIntervals() {
+            localStorage.setItem('selectedKlineIntervals', JSON.stringify(selectedKlineIntervals));
+        }
+
+        function loadSelectedKlineIntervals() {
+            const storedIntervals = localStorage.getItem('selectedKlineIntervals');
+            if (storedIntervals) {
+                Object.assign(selectedKlineIntervals, JSON.parse(storedIntervals));
+            }
+        }
+
+        function saveBalanceObscurityState() {
+            localStorage.setItem('isBalanceObscured', isBalanceObscured);
+        }
+
+        function loadBalanceObscurityState() {
+            const storedState = localStorage.getItem('isBalanceObscured');
+            if (storedState !== null) {
+                isBalanceObscured = (storedState === 'true');
+            }
+        }
+
+        function applyBalanceObscurityState() {
+            if (isBalanceObscured) {
+                totalBalanceValueElement.classList.add('obscured-balance');
+                toggleBalanceVisibilityIcon.classList.remove('fa-eye');
+                toggleBalanceVisibilityIcon.classList.add('fa-eye-slash');
+            } else {
+                totalBalanceValueElement.classList.remove('obscured-balance');
+                toggleBalanceVisibilityIcon.classList.remove('fa-eye-slash');
+                toggleBalanceVisibilityIcon.classList.add('fa-eye');
+            }
+        }
+
+        // ====================================================================
+        // --- FUNZIONI DI LOGICA CORE DELL'APPLICAZIONE ---
+        // ====================================================================
+
+        async function populateCryptoSymbols() {
+            console.log("Attempting to populate crypto symbols...");
+            const select = document.getElementById('cryptoSelect');
+            select.innerHTML = '';
+            try {
+                console.log("Invoking GetAvailableSymbols on server...");
+                const symbols = await connection.invoke("GetAvailableSymbols");
+                console.log("Symbols received:", symbols);
+                if (symbols && symbols.length > 0) {
+                    symbols.sort((a, b) => a.localeCompare(b));
+                    symbols.forEach(symbol => {
+                        const option = document.createElement('option');
+                        option.value = symbol;
+                        option.innerText = symbol;
+                        select.appendChild(option);
+                    });
+                    if (symbols.includes("BTCUSDT")) {
+                        select.value = "BTCUSDT";
+                    }
+                    console.log("Crypto symbols populated successfully.");
+                } else {
+                    console.warn("No symbols received or symbols array is empty.");
+                }
+            } catch (err) {
+                console.error("Error populating crypto symbols:", err);
+            }
+        }
+
+        async function updateUSDCBalance() {
+            try {
+                const usdcBalance = await connection.invoke("GetUSDCBalance");
+                totalBalanceValueElement.textContent = `$${usdcBalance.toFixed(2)}`;
+            } catch (err) {
+                console.error("Errore nel recupero del saldo USDC:", err);
+                totalBalanceValueElement.textContent = "Errore";
+                showSubscriptionMessage("Impossibile recuperare il saldo USDC.", 'error');
+            }
+        }
+        
+        function updateSettingsModal(symbol) {
+            currentSymbolSpan.innerText = symbol;
+            declinePercentageInput.value = cryptoPercentages[symbol] || '';
+
+            modalKlineIntervalSelect.value = selectedKlineIntervals[symbol] || "OneMinute"; // Default a 1m se non salvato
+            settingsModal.classList.add('show');
+        }
+
+        // ====================================================================
+        // --- HANDLER EVENTI SIGNALR ---
+        // ====================================================================
+
+        connection.on("ReceiveTickerUpdate", (tickerData) => {
+            console.log("ReceiveTickerUpdate received:", tickerData);
+            const tickerId = `${tickerData.symbol}_display`;
+            let tickerElement = document.getElementById(tickerId);
+            
+            if (tickerElement) {
+                console.log(`Updating existing ticker element for ${tickerData.symbol} with ID: ${tickerId}`);
+                tickerElement.querySelector('.ticker-price').innerText = `$${tickerData.price.toFixed(2)}`;
+            }
+            updateLastUpdateTime();
+        });
+
+        connection.on("ReceiveKlineUpdate", (klineData) => {
+            // Questo listener ora viene solo a fini di logica, ma non aggiorna direttamente l'UI qui.
+            // La visualizzazione è gestita dal bottone nel modale.
+        });
+
+        // ====================================================================
+        // --- LISTENER EVENTI UTENTE ---
+        // ====================================================================
+
+        // Mobile sidebar toggle
+        document.getElementById('sidebarToggle').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('show');
+        });
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(event.target) && 
+                !toggle.contains(event.target) && 
+                sidebar.classList.contains('show')) {
+                sidebar.classList.remove('show');
+            }
+        });
+
+        document.getElementById('subscribeButton').addEventListener('click', async () => {
+            const symbol = document.getElementById('cryptoSelect').value;
+            if (symbol && !subscribedSymbols.has(symbol)) {
+                try {
+                    await connection.invoke("SubscribeToTicker", symbol);
+                    subscribedSymbols.add(symbol);
+                    saveSubscribedSymbols();
+                    updateActiveTickersCount();
+                    console.log(`Sottoscritto a ${symbol}`);
+                    showSubscriptionMessage(`Sottoscritto a ${symbol} con successo!`, 'success');
+
+                    let tickerElement = document.getElementById(`${symbol}_display`);
+                    if (!tickerElement) {
+                        tickerElement = document.createElement('div');
+                        tickerElement.id = `${symbol}_display`;
+                        tickerElement.className = 'ticker-card fade-in';
+                        tickerElement.innerHTML = `
+                            <div class="ticker-symbol">${symbol}</div>
+                            <div class="ticker-price">Loading...</div>
+                            <div class="decline-percentage" id="${symbol}_decline_percentage"></div>
+                            <div class="kline-info" id="${symbol}_kline_display"></div>
+                        `;
+                        document.getElementById('tickerList').appendChild(tickerElement);
+                    }
+                    if (cryptoPercentages[symbol] !== undefined) {
+                        document.getElementById(`${symbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[symbol]}%`;
+                    } else {
+                        document.getElementById(`${symbol}_decline_percentage`).textContent = `-`;
+                    }
+
+                    // Seleziona il Kline salvato per la visualizzazione iniziale
+                    const initialKlineInterval = selectedKlineIntervals[symbol];
+                    if (initialKlineInterval) {
+                        const klineData = await connection.invoke("GetKlineData", symbol, initialKlineInterval);
+                        const klineDisplayElement = document.getElementById(`${symbol}_kline_display`);
+                        if (klineDisplayElement && klineData) {
+                            const intervalDisplayFormatted = intervalMap[initialKlineInterval] || initialKlineInterval;
+                            klineDisplayElement.innerHTML = `
+                                <strong>Kline Data (${intervalDisplayFormatted})</strong><br>
+                                Open: $${klineData.openPrice.toFixed(2)}<br>
+                                Close: $${klineData.closePrice.toFixed(2)}
+                            `;
+                        } else if (klineDisplayElement) {
+                            klineDisplayElement.innerHTML = `<strong>Kline Data:</strong> Dati non disponibili`;
+                        }
+                    } else {
+                        // Se non c'è una selezione salvata, mostra il messaggio di default
+                        document.getElementById(`${symbol}_kline_display`).innerHTML = `Seleziona un intervallo e clicca "Visualizza Kline Selezionata"`;
+                    }
+
+                    await connection.invoke("SubscribeToTicker", symbol);
+                    console.log(`Riconnesso e sottoscritto a: ${symbol}`);
+                } catch (err) {
+                    console.error(`Errore durante la sottoscrizione a ${symbol}:`, err);
+                    showSubscriptionMessage(`Errore durante la sottoscrizione a ${symbol}.`, 'error');
+                }
+            } else if (subscribedSymbols.has(symbol)) {
+                console.log(`Già sottoscritto a ${symbol}.`);
+                showSubscriptionMessage(`Sei già sottoscritto a ${symbol}.`, 'info');
+            }
+        });
+
+        document.getElementById('unsubscribeButton').addEventListener('click', async () => {
+            const symbol = document.getElementById('cryptoSelect').value;
+            if (symbol && subscribedSymbols.has(symbol)) {
+                try {
+                    await connection.invoke("UnsubscribeFromTicker", symbol);
+                    subscribedSymbols.delete(symbol);
+                    saveSubscribedSymbols();
+                    updateActiveTickersCount();
+                    console.log(`Disiscritto da ${symbol}`);
+                    showSubscriptionMessage(`Disiscritto da ${symbol} con successo!`, 'success');
+                    const tickerElement = document.getElementById(`${symbol}_display`);
+                    if (tickerElement) {
+                        tickerElement.remove();
+                    }
+                } catch (err) {
+                    console.error(`Errore durante la disiscrizione da ${symbol}:`, err);
+                    showSubscriptionMessage(`Errore durante la disiscrizione da ${symbol}.`, 'error');
+                }
+            } else {
+                console.log(`Non sottoscritto a ${symbol}.`);
+                showSubscriptionMessage(`Non sei sottoscritto a ${symbol}.`, 'error');
+            }
+        });
+
+        // Event listener per il toggle dell'occhiolino
+        toggleBalanceVisibilityIcon.addEventListener('click', () => {
+            isBalanceObscured = !isBalanceObscured;
+            applyBalanceObscurityState();
+            saveBalanceObscurityState();
+        });
+
+        // Apri il modale quando si clicca su una ticker card
+        tickerList.addEventListener('click', function(event) {
+            let targetCard = event.target.closest('.ticker-card');
+            if (targetCard) {
+                const symbol = targetCard.querySelector('.ticker-symbol').innerText;
+                updateSettingsModal(symbol);
+            }
+        });
+
+        // Chiudi il modale quando si clicca sul pulsante di chiusura o sull'overlay
+        closeModalButton.addEventListener('click', function() {
+            settingsModal.classList.remove('show');
+        });
+
+        settingsModal.addEventListener('click', function(event) {
+            if (event.target === settingsModal) {
+                settingsModal.classList.remove('show');
+            }
+        });
+
+        // Logica per il pulsante Salva Percentuale nel modale
+        savePercentageButton.addEventListener('click', () => {
+            const symbol = document.getElementById('currentSymbol').innerText;
+            const percentage = parseFloat(declinePercentageInput.value);
+
+            if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
+                cryptoPercentages[symbol] = percentage;
+                saveCryptoPercentages();
+                showSubscriptionMessage(`Percentuale di discesa del ${percentage}% salvata per ${symbol}.`, 'success');
+                settingsModal.classList.remove('show');
+
+                const percentageDisplay = document.getElementById(`${symbol}_decline_percentage`);
+                if (percentageDisplay) {
+                    percentageDisplay.textContent = `Discesa: ${percentage}%`;
+                }
+
+            } else {
+                showSubscriptionMessage('Inserisci una percentuale valida (0-100).', 'error');
+            }
+        });
+
+        // Logica per il pulsante Visualizza Kline Selezionata nel modale
+        showSelectedKlineButton.addEventListener('click', async () => {
+            const symbol = document.getElementById('currentSymbol').innerText;
+            const interval = modalKlineIntervalSelect.value;
+
+            try {
+                const klineData = await connection.invoke("GetKlineData", symbol, interval);
+                const klineDisplayElement = document.getElementById(`${symbol}_kline_display`);
+
+                if (klineDisplayElement) {
+                    if (klineData) {
+                        const intervalDisplayFormatted = intervalMap[interval] || interval;
+                        klineDisplayElement.innerHTML = `
+                            <strong>Kline Data (${intervalDisplayFormatted})</strong><br>
+                            Open: $${klineData.openPrice.toFixed(2)}<br>
+                            Close: $${klineData.closePrice.toFixed(2)}
+                        `;
+                        selectedKlineIntervals[symbol] = interval;
+                        saveSelectedKlineIntervals();
+                        showSubscriptionMessage(`Dati Kline ${intervalDisplayFormatted} visualizzati per ${symbol}.`, 'info');
+                    } else {
+                        klineDisplayElement.innerHTML = `<strong>Kline Data:</strong> Dati non disponibili`;
+                        showSubscriptionMessage(`Dati Kline per ${symbol} - ${intervalMap[interval] || interval} non disponibili.`, 'warning');
+                    }
+                }
+            } catch (err) {
+                console.error(`Errore durante il recupero dei dati Kline per ${symbol} ${interval}:`, err);
+                showSubscriptionMessage(`Errore nel visualizzare dati Kline per ${symbol}.`, 'error');
+            }
+            settingsModal.classList.remove('show');
+        });
+
         // Logica per il pulsante di disiscrizione nel modale
         modalUnsubscribeButton.addEventListener('click', async () => {
             const symbol = document.getElementById('currentSymbol').innerText;
             
-            // Sostituisci il confirm() nativo con il modale personalizzato
             if (await showConfirmationDialog(`Sei sicuro di voler disiscriverti da ${symbol}? Tutti i dati per questo ticker verranno rimossi.`)) {
-                if (symbol && subscribedSymbols.has(symbol)) {
+                if (subscribedSymbols.has(symbol)) {
                     try {
                         await connection.invoke("UnsubscribeFromTicker", symbol);
                         subscribedSymbols.delete(symbol);
@@ -1140,17 +1080,127 @@
                         if (tickerElement) {
                             tickerElement.remove();
                         }
-                        settingsModal.classList.remove('show'); // Chiudi il modale delle impostazioni
+                        settingsModal.classList.remove('show');
                     } catch (err) {
                         console.error(`Errore durante la disiscrizione da ${symbol} (modale):`, err);
                         showSubscriptionMessage(`Errore durante la disiscrizione da ${symbol}.`, 'error');
                     }
                 } else {
                     console.log(`Non sottoscritto a ${symbol} (tentativo da modale).`);
-                    showSubscriptionMessage(`Non sei sottoscritto a ${symbol}.`, 'error'); // Messaggio di errore se non è sottoscritto
+                    showSubscriptionMessage(`Non sei sottoscritto a ${symbol}.`, 'error');
                 }
             }
         });
+
+
+        // ====================================================================
+        // --- FUNZIONE DI INIZIALIZZAZIONE ---
+        // ====================================================================
+
+        async function start() {
+            try {
+                await connection.start();
+                console.log("SignalR Connected.");
+
+                // Carica e inizializza i dati persistenti
+                loadSubscribedSymbols();
+                loadCryptoPercentages();
+                loadSelectedKlineIntervals();
+                loadBalanceObscurityState();
+
+                // Popola UI in base ai dati caricati
+                populateModalKlineIntervals(); // Deve essere popolato prima di pre-selezionare
+                applyBalanceObscurityState();
+                await populateCryptoSymbols(); // Popola la dropdown dei simboli crypto
+
+                // Sottoscrivi ai ticker salvati o al default
+                for (const symbol of subscribedSymbols) {
+                    let tickerElement = document.getElementById(`${symbol}_display`);
+                    if (!tickerElement) {
+                        tickerElement = document.createElement('div');
+                        tickerElement.id = `${symbol}_display`;
+                        tickerElement.className = 'ticker-card fade-in';
+                        tickerElement.innerHTML = `
+                            <div class="ticker-symbol">${symbol}</div>
+                            <div class="ticker-price">Loading...</div>
+                            <div class="decline-percentage" id="${symbol}_decline_percentage"></div>
+                            <div class="kline-info" id="${symbol}_kline_display"></div>
+                        `;
+                        document.getElementById('tickerList').appendChild(tickerElement);
+                    }
+                    if (cryptoPercentages[symbol] !== undefined) {
+                        document.getElementById(`${symbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[symbol]}%`;
+                    } else {
+                        document.getElementById(`${symbol}_decline_percentage`).textContent = `-`;
+                    }
+
+                    // Seleziona il Kline salvato per la visualizzazione iniziale
+                    const initialKlineInterval = selectedKlineIntervals[symbol];
+                    if (initialKlineInterval) {
+                        const klineData = await connection.invoke("GetKlineData", symbol, initialKlineInterval);
+                        const klineDisplayElement = document.getElementById(`${symbol}_kline_display`);
+                        if (klineDisplayElement && klineData) {
+                            const intervalDisplayFormatted = intervalMap[initialKlineInterval] || initialKlineInterval;
+                            klineDisplayElement.innerHTML = `
+                                <strong>Kline Data (${intervalDisplayFormatted})</strong><br>
+                                Open: $${klineData.openPrice.toFixed(2)}<br>
+                                Close: $${klineData.closePrice.toFixed(2)}
+                            `;
+                        } else if (klineDisplayElement) {
+                            klineDisplayElement.innerHTML = `<strong>Kline Data:</strong> Dati non disponibili`;
+                        }
+                    } else {
+                        // Se non c'è una selezione salvata, mostra il messaggio di default
+                        document.getElementById(`${symbol}_kline_display`).innerHTML = `Seleziona un intervallo e clicca "Visualizza Kline Selezionata"`;
+                    }
+
+                    await connection.invoke("SubscribeToTicker", symbol);
+                    console.log(`Riconnesso e sottoscritto a: ${symbol}`);
+                }
+
+                if (subscribedSymbols.size === 0) {
+                    const defaultSymbol = document.getElementById('cryptoSelect').value;
+                    if (defaultSymbol) {
+                        await connection.invoke("SubscribeToTicker", defaultSymbol);
+                        subscribedSymbols.add(defaultSymbol);
+                        console.log(`Sottoscritto a simbolo di default: ${defaultSymbol}`);
+                        let tickerElement = document.getElementById(`${defaultSymbol}_display`);
+                        if (!tickerElement) {
+                            tickerElement = document.createElement('div');
+                            tickerElement.id = `${defaultSymbol}_display`;
+                            tickerElement.className = 'ticker-card fade-in';
+                            tickerElement.innerHTML = `
+                                <div class="ticker-symbol">${defaultSymbol}</div>
+                                <div class="ticker-price">Loading...</div>
+                                <div class="decline-percentage" id="${defaultSymbol}_decline_percentage"></div>
+                                <div class="kline-info" id="${defaultSymbol}_kline_display"></div>
+                            `;
+                            document.getElementById('tickerList').appendChild(tickerElement);
+                        }
+                        if (cryptoPercentages[defaultSymbol] !== undefined) {
+                            document.getElementById(`${defaultSymbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[defaultSymbol]}%`;
+                        } else {
+                            document.getElementById(`${defaultSymbol}_decline_percentage`).textContent = `-`;
+                        }
+                        document.getElementById(`${defaultSymbol}_kline_display`).innerHTML = `Seleziona un intervallo e clicca "Visualizza Kline Selezionata"`; // Default per kline
+                    }
+                }
+                
+                updateActiveTickersCount();
+                updateUSDCBalance();
+
+            } catch (err) {
+                console.error("Errore durante l'inizializzazione dell'applicazione:", err);
+                showSubscriptionMessage("Errore grave durante l'avvio dell'applicazione. Controlla la console.", 'error');
+                setTimeout(start, 5000);
+            }
+        };
+
+        // Esegui la funzione di inizializzazione all'avvio
+        start();
+
+        // Aggiornamenti Periodici
+        setInterval(updateUSDCBalance, 30000);
 
     </script>
 </body>
