@@ -101,6 +101,15 @@
             align-items: center;
             gap: 8px;
         }
+        .control-section-status h5 {
+            color: #fff;
+            margin-bottom: 1px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            /* padding-top: 10px; */
+        }        
 
         .form-select, .btn {
             margin-bottom: 10px;
@@ -237,11 +246,8 @@
         }
 
         .status-indicator {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            width: 12px;
-            height: 12px;
+            width: 16px;
+            height: 16px;
             background: #28a745;
             border-radius: 50%;
             animation: pulse 2s infinite;
@@ -466,20 +472,21 @@
                     <!-- Opzioni intervallo Kline saranno popolate da JS -->
                 </select>
             </div>
-            <div class="d-grid">
+            <!-- <div class="d-grid">
                 <button id="showKlineButton" class="btn btn-custom">
                     <i class="fas fa-chart-area me-2"></i>Mostra Kline
-                </button>
+                </button> -->
             </div>
         </div>
-        -->
+        
 
         <!-- Connection Status -->
-        <div class="control-section">
-            <h5><i class="fas fa-wifi"></i> Status</h5>
-            <div class="d-flex align-items-center">
-                <div class="status-indicator"></div>
-                <span class="text-white ms-2">Connesso</span>
+        <div class="control-section-status">
+            <!-- <h5><i class="fas fa-wifi"></i> Status</h5> -->
+            <div class="d-flex align-items-center justify-content-end">
+                <h5><i class="fas fa-wifi"></i></h5>
+                <div class="status-indicator me-1"></div>
+                <span class="text-white">Connesso</span>
             </div>
         </div>
     </div>
