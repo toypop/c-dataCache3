@@ -103,12 +103,11 @@
         }
         .control-section-status h5 {
             color: #fff;
-            margin-bottom: 1px;
+            /* margin-bottom: 5px; */
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 18px;
-            /* padding-top: 10px; */
+            gap: 8px;
         }        
 
         .form-select, .btn {
@@ -248,14 +247,14 @@
         .status-indicator {
             width: 16px;
             height: 16px;
-            background: #28a745;
+            background: #73c085;
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
 
         @keyframes pulse {
             0% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0; }
             100% { opacity: 1; }
         }
 
@@ -461,30 +460,12 @@
             </div>
         </div>
 
-        <!-- Kline Controls -->
-        <!-- Rimosso: Gestione automatica dei Kline stream tramite sottoscrizione ticker -->
-        <!--
-        <div class="control-section">
-            <h5><i class="fas fa-chart-bar"></i> Kline Data</h5>
-            <div class="mb-3">
-                <label for="klineIntervalSelect" class="form-label text-white">Intervallo:</label>
-                <select id="klineIntervalSelect" class="form-select">
-                    <!-- Opzioni intervallo Kline saranno popolate da JS -->
-                </select>
-            </div>
-            <!-- <div class="d-grid">
-                <button id="showKlineButton" class="btn btn-custom">
-                    <i class="fas fa-chart-area me-2"></i>Mostra Kline
-                </button> -->
-            </div>
-        </div>
-        
-
+    
         <!-- Connection Status -->
         <div class="control-section-status">
             <!-- <h5><i class="fas fa-wifi"></i> Status</h5> -->
-            <div class="d-flex align-items-center justify-content-end">
-                <h5><i class="fas fa-wifi"></i></h5>
+            <div class="d-flex align-items-center justify-content-center">
+                <!-- <h5><i class="fas fa-wifi"></i></h5> -->
                 <div class="status-indicator me-1"></div>
                 <span class="text-white">Connesso</span>
             </div>
