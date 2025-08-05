@@ -71,18 +71,6 @@ namespace BinanceDataCacheApp
     /// </summary>
     public sealed class BinanceDataCache
     {
-        #region Singleton Implementation
-        private static readonly Lazy<BinanceDataCache> _instance = 
-            new Lazy<BinanceDataCache>(() => new BinanceDataCache());
-        
-        /// <summary>
-        /// Istanza singleton della cache
-        /// </summary>
-        public static BinanceDataCache Instance => _instance.Value;
-        
-        private BinanceDataCache() { }
-        #endregion
-
         #region Thread-safe Data Structures
         /// <summary>
         /// Cache thread-safe per i dati ticker. Chiave: simbolo (es. "BTCUSDT")

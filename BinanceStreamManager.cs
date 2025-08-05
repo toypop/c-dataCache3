@@ -114,10 +114,10 @@ namespace BinanceDataCacheApp
         /// </summary>
         /// <param name="logger">Logger per il debugging</param>
         /// <param name="configuration">Configurazione dell'applicazione per le API Key</param>
-        public BinanceStreamManager(ILogger<BinanceStreamManager> logger, IConfiguration configuration)
+        public BinanceStreamManager(ILogger<BinanceStreamManager> logger, IConfiguration configuration, BinanceDataCache cache)
         {
             _logger = logger;
-            _cache = BinanceDataCache.Instance;
+            _cache = cache;
             
             var apiKey = configuration["Binance:ApiKey"];
             var secretKey = configuration["Binance:SecretKey"];

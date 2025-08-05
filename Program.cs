@@ -19,9 +19,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
-using Binance.Net.Enums;
 using System;
 using System.Linq;
+using Telegram.Bot; // Aggiungi questo using
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,15 +31,41 @@ if (builder.Environment.IsDevelopment())
     builder.Configuration.AddUserSecrets<Program>();
 }
 
+// Aggiungi la configurazione per Telegram Bot
+var telegramBotToken = builder.Configuration["Telegram:BotToken"];
+
+// Crea un logger per l'uso immediato in Program.cs
+var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<Program>();
+
+if (string.IsNullOrEmpty(telegramBotToken))
+{
+    logger.LogError("Il token del bot Telegram non è configurato. Assicurati di aver impostato la variabile d'ambiente 'Telegram:BotToken' o un user secret.");
+    // Puoi scegliere di lanciare un'eccezione, terminare l'app, o semplicemente non abilitare la funzionalità Telegram.
+    // Per ora, l'applicazione continuerà senza la funzionalità Telegram.
+}
+else
+{
+    builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(telegramBotToken));
+    logger.LogInformation("Telegram Bot Client configurato con successo.");
+}
+
+
 // Configurazione del logging
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
+builder.Services.AddLogging(configure =>
+{
+    configure.AddConsole();
+    // Filtra i log di Microsoft.Hosting.Lifetime per essere almeno Information
+    configure.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Information);
+});
 
 // Aggiungi servizi alla pipeline
-builder.Services.AddSingleton(BinanceDataCache.Instance); // Registra l'istanza singleton esistente
+builder.Services.AddSingleton<BinanceDataCache>();
 builder.Services.AddSingleton<BinanceStreamManager>();
 builder.Services.AddSignalR();
 builder.Services.AddHostedService<BinanceStreamHostedService>();
+
+// Registra il servizio di notifica Telegram
+builder.Services.AddSingleton<ITelegramNotificationService, TelegramNotificationService>();
 
 var app = builder.Build();
 
@@ -59,28 +85,40 @@ public class BinanceStreamHostedService : IHostedService
     private readonly ILogger<BinanceStreamHostedService> _logger;
     private readonly BinanceDataCache _cache;
     private readonly IHubContext<TickerHub> _hubContext;
+    private readonly ITelegramNotificationService _telegramService; // Aggiungi questa linea
 
     public BinanceStreamHostedService(
         BinanceStreamManager streamManager,
         ILogger<BinanceStreamHostedService> logger,
         BinanceDataCache cache,
-        IHubContext<TickerHub> hubContext) // Aggiungi IHubContext qui
+        IHubContext<TickerHub> hubContext,
+        ITelegramNotificationService telegramService) // Aggiungi telegramService qui
     {
         _streamManager = streamManager;
         _logger = logger;
         _cache = cache;
         _hubContext = hubContext; // Inizializza l'HubContext
+        _telegramService = telegramService; // Inizializza il servizio Telegram
 
         _cache.OnTickerUpdated += async (tickerData) =>
         {
             // Invia l'aggiornamento ai client SignalR direttamente
             await _hubContext.Clients.All.SendAsync("ReceiveTickerUpdate", tickerData);
+
+            // Esempio: invia un messaggio Telegram se il prezzo di BTCUSDT scende sotto un certo livello
+            // Questa logica può essere raffinata in base alla percentuale di discesa che hai menzionato
+            if (tickerData.Symbol == "BTCUSDT" && tickerData.Price < 20000)
+            {
+                var message = $"🚨 **Avviso BTCUSDT:** Il prezzo è sceso a **{tickerData.Price:F2}$**!";
+                await _telegramService.SendMessageAsync(message);
+            }
         };
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Binance Stream Hosted Service avviato.");
+        await _telegramService.SendMessageAsync("**TEST:** L'applicazione Binance Data Cache è stata avviata con successo!");
         // Avvia gli stream per BTCUSDT
         await _streamManager.StartTickerStreamAsync("BTCUSDT");
         
