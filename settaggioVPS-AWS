@@ -1,0 +1,42 @@
+ Amazon Elastic Compute Cloud (Amazon EC2): Se il tuo progetto in background è un'applicazione a lunga esecuzione che richiede il controllo completo sul sistema operativo e sull'ambiente server, puoi ospitarlo su un'istanza EC2.
+    ◦ Settaggi/Configurazioni:
+        ▪ Amazon Machine Image (AMI): Scegli un'AMI (un modello di macchina virtuale) con il sistema operativo desiderato (Windows o Linux).
+        ▪ Tipi di Istanza: Seleziona il tipo di istanza EC2 appropriato in base alle esigenze di CPU, memoria, storage e prestazioni di rete del tuo progetto.
+        ▪ Gruppi di Sicurezza (Security Groups): Configura le regole del firewall virtuale per controllare il traffico in entrata e in uscita dall'istanza.
+        ▪ Coppia di Chiavi (Key Pair): Utilizza una coppia di chiavi per connetterti in modo sicuro alla tua istanza.
+        ▪ Dati Utente (User Data): Puoi specificare uno script che verrà eseguito automaticamente al primo avvio dell'istanza per automatizzare configurazioni e installazioni.
+        ▪ Auto Scaling: Se il carico di lavoro del tuo progetto in background varia, puoi utilizzare Amazon EC2 Auto Scaling con un gruppo Auto Scaling e una configurazione di lancio per aggiungere o rimuovere automaticamente istanze EC2 in base alla domanda.
+
+partenza da riga di comando : 
+    plink -i WebAwsPutty.ppk ec2-user@18.102.51.247
+
+Dove mettere cosa: suddivisione logica
+/home/ec2-user
+✅ I tuoi file personali, script di utilità, chiavi temporanee, configurazioni locali
+/var/www
+🌐 File del sito web (HTML, JS, PHP, ecc.) — se usi Apache/Nginx
+/opt
+🖥️ Applicazioni custom (es. Node.js, Python Flask, ecc.)
+/srv
+📦 Dati dei servizi (es.
+/srv/api
+,
+/srv/app
+)
+/tmp
+🗑️ File temporanei (non usarla per progetti!)
+
+WebAPP in :
+/opt/MyWebApp/
+
+camando:
+dotnet publish 
+->
+MyWebApp/
+├── MyWebApp.dll
+├── MyWebApp.runtimeconfig.json
+├── MyWebApp.deps.json
+├── web.config (se per IIS, ma non serve su Linux)
+├── wwwroot/ (file statici)
+├── appsettings.json
+└── altri file .dll delle dipendenze

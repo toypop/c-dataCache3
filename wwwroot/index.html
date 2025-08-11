@@ -539,7 +539,7 @@
                 </div>
 
                 <div class="mb-3 mt-4">
-                    <label for="modalKlineIntervalSelect" class="form-label text-white">Mostra Kline su card:</label>
+                    <label for="modalKlineIntervalSelect" class="form-label text-white">TimeFrame:</label>
                     <select id="modalKlineIntervalSelect" class="form-select">
                         <!-- Opzioni intervallo Kline saranno popolate da JS -->
                     </select>
@@ -547,7 +547,7 @@
 
                 <div class="d-grid mt-2">
                     <button id="showSelectedKlineButton" class="btn btn-custom">
-                        <i class="fas fa-chart-area me-2"></i>Visualizza Kline Selezionata
+                        <i class="fas fa-chart-area me-2"></i>Visualizza Timeframe selezionato
                     </button>
                 </div>
 
@@ -923,12 +923,12 @@
                         if (klineDisplayElement && klineData) {
                             const intervalDisplayFormatted = intervalMap[initialKlineInterval] || initialKlineInterval;
                             klineDisplayElement.innerHTML = `
-                                <strong>Kline Data (${intervalDisplayFormatted})</strong><br>
+                                <strong>TimeFrame (${intervalDisplayFormatted})</strong><br>
                                 Open: $${klineData.openPrice.toFixed(2)}<br>
                                 Close: $${klineData.closePrice.toFixed(2)}
                             `;
                         } else if (klineDisplayElement) {
-                            klineDisplayElement.innerHTML = `<strong>Kline Data:</strong> Dati non disponibili`;
+                            klineDisplayElement.innerHTML = `<strong>TimeFrame:</strong> Dati non disponibili`;
                         }
                     } else {
                         // Se non c'è una selezione salvata, mostra il messaggio di default
@@ -1032,21 +1032,21 @@
                     if (klineData) {
                         const intervalDisplayFormatted = intervalMap[interval] || interval;
                         klineDisplayElement.innerHTML = `
-                            <strong>Kline Data (${intervalDisplayFormatted})</strong><br>
+                            <strong>TimeFrame (${intervalDisplayFormatted})</strong><br>
                             Open: $${klineData.openPrice.toFixed(2)}<br>
                             Close: $${klineData.closePrice.toFixed(2)}
                         `;
                         selectedKlineIntervals[symbol] = interval;
                         saveSelectedKlineIntervals();
-                        showSubscriptionMessage(`Dati Kline ${intervalDisplayFormatted} visualizzati per ${symbol}.`, 'info');
+                        showSubscriptionMessage(`TimeFrame ${intervalDisplayFormatted} visualizzati per ${symbol}.`, 'info');
                     } else {
-                        klineDisplayElement.innerHTML = `<strong>Kline Data:</strong> Dati non disponibili`;
-                        showSubscriptionMessage(`Dati Kline per ${symbol} - ${intervalMap[interval] || interval} non disponibili.`, 'warning');
+                        klineDisplayElement.innerHTML = `<strong>TimeFrame:</strong> Dati non disponibili`;
+                        showSubscriptionMessage(`TimeFrame per ${symbol} - ${intervalMap[interval] || interval} non disponibili.`, 'warning');
                     }
                 }
             } catch (err) {
-                console.error(`Errore durante il recupero dei dati Kline per ${symbol} ${interval}:`, err);
-                showSubscriptionMessage(`Errore nel visualizzare dati Kline per ${symbol}.`, 'error');
+                console.error(`Errore durante il recupero del Timeframe per ${symbol} ${interval}:`, err);
+                showSubscriptionMessage(`Errore nel visualizzare del TimeFrame per ${symbol}.`, 'error');
             }
             settingsModal.classList.remove('show');
         });
@@ -1130,12 +1130,12 @@
                         if (klineDisplayElement && klineData) {
                             const intervalDisplayFormatted = intervalMap[initialKlineInterval] || initialKlineInterval;
                             klineDisplayElement.innerHTML = `
-                                <strong>Kline Data (${intervalDisplayFormatted})</strong><br>
+                                <strong>TimeFrame (${intervalDisplayFormatted})</strong><br>
                                 Open: $${klineData.openPrice.toFixed(2)}<br>
                                 Close: $${klineData.closePrice.toFixed(2)}
                             `;
                         } else if (klineDisplayElement) {
-                            klineDisplayElement.innerHTML = `<strong>Kline Data:</strong> Dati non disponibili`;
+                            klineDisplayElement.innerHTML = `<strong>TimeFrame:</strong> Dati non disponibili`;
                         }
                     } else {
                         // Se non c'è una selezione salvata, mostra il messaggio di default
