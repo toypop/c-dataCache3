@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "ku8nc3yqEcEO8pMdxE8vzhE5DFcVGoOip43ytTegSPtJ73IRKfBviXTadF/aDRGGwvY6XG37Bolm8x0gk29j0w==",
+  "dgSpecHash": "/DCw6QVC726bG2Ue7/JEitcDcEu9jF2gE9zUBsdeQVaRjc2SJ1D8gH/pHPpo9QBoXs5JXQ9Y4L6abXnG4xuPNg==",
   "success": true,
   "projectFilePath": "/home/toypop/vscodeFile/binanceLast2/c#dataCache3/c#dataCache3.csproj",
   "expectedPackageFiles": [
@@ -35,7 +35,8 @@
     "/home/toypop/.nuget/packages/system.text.encodings.web/9.0.5/system.text.encodings.web.9.0.5.nupkg.sha512",
     "/home/toypop/.nuget/packages/system.text.json/9.0.5/system.text.json.9.0.5.nupkg.sha512",
     "/home/toypop/.nuget/packages/system.threading.channels/8.0.0/system.threading.channels.8.0.0.nupkg.sha512",
-    "/home/toypop/.nuget/packages/telegram.bot/19.0.0/telegram.bot.19.0.0.nupkg.sha512"
+    "/home/toypop/.nuget/packages/telegram.bot/19.0.0/telegram.bot.19.0.0.nupkg.sha512",
+    "/home/toypop/.nuget/packages/microsoft.netcore.app.host.linux-x64/8.0.17/microsoft.netcore.app.host.linux-x64.8.0.17.nupkg.sha512"
   ],
   "logs": []
 }

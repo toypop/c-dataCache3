@@ -7,3 +7,4 @@ per leggerle
 eliminare il processo che occupa la porta:
 fuser -k 5000/tcp || echo "Nessun processo trovato o errore nel terminare 
 il processo sulla porta 5000."
+

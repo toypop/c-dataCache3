@@ -40,3 +40,43 @@ MyWebApp/
 ├── wwwroot/ (file statici)
 ├── appsettings.json
 └── altri file .dll delle dipendenze
+
+    per pubblicare l app:
+dotnet publish -c Release -r linux-x64 --self-contained false
+    caricare i file su vps in : 
+opt/MyWebApp  (nel caso di c#) 
+    poi:
+dotnet MyWebApp.dll 
+  
+  e poi per renderlo persistente configurarlo come servizio di sistema: 
+
+Metodo Robusto (raccomandato per produzione): systemd
+Per un'applicazione in produzione, il modo migliore è configurarla come un servizio di sistema usando systemd. Questo assicura che l'applicazione si avvii automaticamente all'avvio della VPS, si riavvii in caso di crash e possa essere gestita facilmente (avvio, arresto, stato) con comandi standard.
+Ecco i passi generici per systemd:
+Crea un file di servizio (es. /etc/systemd/system/miaapp.service):
+
+        [Unit]
+        Description=La mia applicazione .NET
+        After=network.target
+
+        [Service]
+        WorkingDirectory=/opt/Binance # Il percorso dove si trova la tua app
+        ExecStart=/usr/bin/dotnet /opt/Binance/c#dataCache3.dll # Il percorso completo a dotnet e alla tua DLL
+        Restart=always
+        # Environment=ASPNETCORE_URLS="http://0.0.0.0:5000" # Le tue variabili d'ambiente
+        # Environment=Telegram__BotToken="IL_TUO_TOKEN" # Le tue variabili d'ambiente
+        # Aggiungi tutte le variabili d'ambiente qui.
+        User=www-data # Un utente non privilegiato, es. www-data o un utente dedicato
+        Group=www-data
+
+        [Install]
+        WantedBy=multi-user.target
+
+Nota: Devi inserire le variabili d'ambiente direttamente nel file di servizio, come mostrato nei commenti.
+Ricarica systemd per riconoscere il nuovo servizio:
+        sudo systemctl daemon-reload
+Abilita il servizio per avviarsi all'avvio del sistema:
+        sudo systemctl enable miaapp.service
+Avvia il servizio:
+        sudo systemctl start miaapp.service
+

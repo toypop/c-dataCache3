@@ -1,0 +1,94 @@
+# Binaries
+bin/
+obj/
+
+# Visual Studio files
+*.suo
+*.user
+*.userprefs
+*.vs/
+.vs/
+
+# NuGet packages
+packages/
+*.nupkg
+
+# Build results
+*.dll
+*.exe
+*.pdb
+*.ilk
+*.metagen
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.rsp
+*.pgc
+*.pgd
+*.wod
+*.aps
+*.bsc
+*.sbr
+*.pch
+*.idb
+*.obj
+*.res
+*.lib
+*.ncb
+*.raw
+*.dll.config
+*.exe.config
+
+# Rider files
+.idea/
+
+# DotNet tools
+.config/dotnet-tools.json
+.config/dotnet-tools.json.sha256
+
+# Miscellaneous
+*.log
+*.bak
+*.orig
+*.swp
+*.swo
+*.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Other temporary files
+*~
+# Logs
+log/
+logs/
+*.log
+
+# Npm
+node_modules/
+npm-debug.log*
+
+# Mac
+.DS_Store
+
+# ReSharper
+*.ReSharper*
+
+# Visual Studio Code
+.vscode/
+
+# Package Manager files
+*.nuget.props
+*.targets
+
+# Temporary files from various tools
+*.docstates
+*.cache
+*.bak
+*.aps
+*.ncb
+*.opendb
+*.VC.db
+*.VC.VC.opendb
