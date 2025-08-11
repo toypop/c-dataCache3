@@ -41,8 +41,17 @@ MyWebApp/
 ├── appsettings.json
 └── altri file .dll delle dipendenze
 
-    per pubblicare l app:
+    per pubblicare l app: (ottimizzato per la produzione)
 dotnet publish -c Release -r linux-x64 --self-contained false
+
+🔹 -c Release: ottimizza per produzione
+🔹 -r linux-x64: specifica la piattaforma di destinazione
+🔹 --self-contained false: usa il runtime installato su EC2 (più leggero) 
+
+✅ Output: bin/Release/net8.0/linux-x64/publish/
+
+👉 Questa è la cartella da copiare su EC2. 
+
     caricare i file su vps in : 
 opt/MyWebApp  (nel caso di c#) 
     poi:
@@ -80,3 +89,57 @@ Abilita il servizio per avviarsi all'avvio del sistema:
 Avvia il servizio:
         sudo systemctl start miaapp.service
 
+4. Metti un reverse proxy (Nginx) davanti (opzionale ma consigliato)
+Se vuoi accedere senza la porta (es. http://tuo-ip invece di http://tuo-ip:5000):
+
+Installa Nginx:
+bash
+
+
+1
+sudo apt install nginx
+Configura:
+bash
+
+
+1
+sudo nano /etc/nginx/sites-available/default
+Nel blocco server, aggiungi:
+
+nginx
+
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+location / {
+    proxy_pass http://localhost:5000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection keep-alive;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+Riavvia:
+
+bash
+
+
+1
+sudo systemctl restart nginx
+✅ 5. Apri la porta nel Security Group AWS
+Assicurati che il Security Group permetta:
+
+Porta
+80 (HTTP)
+Porta 443 (HTTPS, se usi SSL)
+(La porta 5000 non serve se usi Nginx come reverse proxy)
