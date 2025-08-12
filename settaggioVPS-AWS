@@ -143,3 +143,8 @@ Porta
 80 (HTTP)
 Porta 443 (HTTPS, se usi SSL)
 (La porta 5000 non serve se usi Nginx come reverse proxy)
+
+
+CREATE USER alessandro WITH PASSWORD 'arcobaleno18';
+CREATE DATABASE binancedb OWNER alessandro;
+GRANT ALL PRIVILEGES ON DATABASE binancedb TO alessandro;

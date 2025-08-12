@@ -22,6 +22,8 @@ using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Linq;
 using Telegram.Bot; // Aggiungi questo using
+using BinanceDataCacheApp.Data; // Aggiungi questo using
+using Microsoft.EntityFrameworkCore; // Aggiungi questo using
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -67,6 +69,11 @@ builder.Services.AddHostedService<BinanceStreamHostedService>();
 // Registra il servizio di notifica Telegram
 builder.Services.AddSingleton<ITelegramNotificationService, TelegramNotificationService>();
 
+// Configura il DbContext per PostgreSQL
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
 var app = builder.Build();
 
 // Configura la pipeline di richiesta HTTP
@@ -74,6 +81,13 @@ app.UseDefaultFiles(); // Permette di servire index.html per default
 app.UseStaticFiles(); // Abilita il servizio di file statici dalla cartella wwwroot
 
 app.MapHub<TickerHub>("/tickerHub");
+
+// Applica le migrazioni del database all'avvio
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    dbContext.Database.Migrate();
+}
 
 app.Run();
 

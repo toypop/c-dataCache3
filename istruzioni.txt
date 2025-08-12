@@ -8,3 +8,46 @@ eliminare il processo che occupa la porta:
 fuser -k 5000/tcp || echo "Nessun processo trovato o errore nel terminare 
 il processo sulla porta 5000."
 
+1. L'utente invia le chiavi API al tuo backend (tramite HTTPS).
+2. Il tuo backend le crittografa usando un algoritmo forte (es. AES-256).
+3. Le chiavi crittografate vengono salvate nel tuo database relazionale.
+4. Quando servono, il backend le recupera, le decrittografa 
+in memoria e le usa per interagire con Binance.
+
+La chiave di crittografia (quella che il tuo backend usa 
+per crittografare/decrittografare le chiavi API degli utenti) 
+e nome utente e psw del db
+devono essere un segreto dell'applicazione e gestita 
+in modo sicuro, idealmente tramite variabili d'ambiente 
+o un servizio di gestione dei segreti 
+(come  AWS Secrets Manager).
+
+per DB: Amazon RDS ->Aurora(postgreSql,MySQL)
+
+
+Task Completed
+
+Ho completato la configurazione iniziale del database relazionale PostgreSQL per la tua applicazione.
+
+Sono stati eseguiti i seguenti passaggi:
+
+1. __Aggiunte le dipendenze__ di Entity Framework Core e Npgsql al file `c#dataCache3.csproj`.
+2. __Creati i modelli__ `User.cs`, `BinanceApiKey.cs` e `BotConfiguration.cs` nella cartella `Models/`.
+3. __Creato il `DbContext`__ (`ApplicationDbContext.cs`) nella cartella `Data/` per gestire l'interazione con il database.
+4. __Configurato `Program.cs`__ per registrare il `DbContext` e applicare automaticamente le migrazioni all'avvio dell'applicazione.
+5. __Creato il file `appsettings.json`__ con una stringa di connessione di esempio per PostgreSQL.
+6. __Installato lo strumento `dotnet-ef`__ globalmente.
+7. __Generata la migrazione iniziale__ (`InitialCreate`) che definisce lo schema del database.
+
+__Prossimi Passaggi Importanti:__
+
+Per far funzionare l'applicazione con il database, devi assicurarti che:
+
+1. __Un server PostgreSQL sia in esecuzione__ sulla tua macchina locale (o dove intendi eseguire l'applicazione) e sia accessibile sulla porta `5432`.
+2. __Il database `binancedb` esista__ su quel server.
+3. __L'utente `postgres` esista__ e abbia i permessi necessari.
+4. __Devi aggiornare la password__ nella stringa di connessione in `appsettings.json`. Attualmente è impostata su `your_password`. __Sostituiscila con la password effettiva del tuo utente PostgreSQL.__
+
+Una volta che il server PostgreSQL è configurato e la password è aggiornata in `appsettings.json`, puoi avviare l'applicazione. All'avvio, Entity Framework Core applicherà automaticamente la migrazione `InitialCreate`, creando le tabelle `Users`, `ApiKeys` e `BotConfigurations` nel tuo database.
+
+Per avviare l'applicazione e testare la configurazione del database, puoi usare il comando:

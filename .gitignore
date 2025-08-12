@@ -65,6 +65,7 @@ Thumbs.db
 log/
 logs/
 *.log
+*.txt
 
 # Npm
 node_modules/
