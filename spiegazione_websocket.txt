@@ -1,3 +1,53 @@
+In base all'implementazione attuale, per ogni simbolo di criptovaluta che sottoscrivi, 
+vengono gestite le sottoscrizioni nel seguente modo:
+
+Stream Ticker (1 connessione WebSocket):
+Una connessione WebSocket dedicata per i dati del ticker di quel simbolo.
+1 sottoscrizione: il ticker stream per il simbolo specifico (es. BTCUSDT).
+
+Stream Kline a Breve Termine (1 connessione WebSocket):
+Una connessione WebSocket dedicata per i dati Kline a breve termine di quel simbolo.
+3 sottoscrizioni: i Kline stream per gli intervalli di 1 minuto, 5 minuti e 15 minuti di quel simbolo.
+
+Stream Kline a Lungo Termine (1 connessione WebSocket):
+Una connessione WebSocket dedicata per i dati Kline a lungo termine di quel simbolo.
+3 sottoscrizioni: i Kline stream per gli intervalli di 1 ora, 4 ore e 1 giorno di quel simbolo.
+
+Quindi, per ogni simbolo sottoscritto, vengono aperte un totale di 3 connessioni
+ WebSocket separate, ognuna delle quali gestisce un numero specifico di sottoscrizioni 
+ (1 per il ticker, 3 per le Kline a breve termine, 3 per le Kline a lungo termine). 
+ Questo approccio mira a rispettare i limiti di rate limit di Binance distribuendo 
+ le sottoscrizioni su più connessioni.
+
+
+si hanno massimo 1024 websocket  per client
+ogn websovcket puo sottoscrivere piu flussi 
+ce' un limite di 5 messaggi al secondo per ogni websocket
+
+Limiti delle WebSocket (5 messaggi/secondo per connessione):
+se piu client condivisdono la stessa api binance , questa 
+non influisce sul limite dei 5 messaggi al secondo
+perche binance considera il singolo ip (client)  
+per il calcolo dei limiti  
+
+Limiti delle API REST (ad es. 1200 request weight/minuto):
+il limite ce' sulle apikey quando si fanno richieste 
+API rest. in questo caso se stessi client usano la stessa 
+api key, allora le loro richieste si sommeranno e faranno cumulo
+fino al target di 1200 request weight /minuto
+
+In sintesi:
+WebSocket: Se le istanze hanno IP diversi, i limiti 
+per i messaggi dello stream (5 msg/s per connessione) 
+si applicano a ogni singola connessione stabilita 
+da ciascuna istanza, in modo indipendente. 
+Riceverai dati duplicati, ma non dovresti violare 
+il limite per connessione.
+API REST: Le richieste REST effettuate da più istanze 
+con la stessa API Key (e/o dallo stesso IP) si 
+sommano e potrebbero farti raggiungere i 
+limiti di rate limit complessivi.
+
 I WebSockets sono una tecnologia di comunicazione che fornisce un canale 
 di comunicazione full-duplex su una singola connessione TCP. 
 A differenza del tradizionale HTTP, che è stateless e richiede una nuova connessione 
