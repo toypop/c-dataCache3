@@ -50,4 +50,3 @@ Per far funzionare l'applicazione con il database, devi assicurarti che:
 
 Una volta che il server PostgreSQL è configurato e la password è aggiornata in `appsettings.json`, puoi avviare l'applicazione. All'avvio, Entity Framework Core applicherà automaticamente la migrazione `InitialCreate`, creando le tabelle `Users`, `ApiKeys` e `BotConfigurations` nel tuo database.
 
-Per avviare l'applicazione e testare la configurazione del database, puoi usare il comando:

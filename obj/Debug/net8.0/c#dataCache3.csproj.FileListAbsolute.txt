@@ -201,3 +201,4 @@
 /home/toypop/vscodeFile/binanceLast2/c#dataCache3/bin/Debug/net8.0/zh-Hans/Microsoft.CodeAnalysis.Workspaces.resources.dll
 /home/toypop/vscodeFile/binanceLast2/c#dataCache3/bin/Debug/net8.0/zh-Hant/Microsoft.CodeAnalysis.Workspaces.resources.dll
 /home/toypop/vscodeFile/binanceLast2/c#dataCache3/bin/Debug/net8.0/appsettings.json
+/home/toypop/vscodeFile/binanceLast2/c#dataCache3/bin/Debug/net8.0/appsettingsAWS.json
