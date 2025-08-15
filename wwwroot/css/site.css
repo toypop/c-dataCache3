@@ -1,0 +1,206 @@
+/* Rimuovi margini e padding dal body */
+body {
+    margin: 0;
+    padding: 0;
+    padding-top: 70px; /* Spazio per la navbar fissa */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Sfondo globale */
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: white;
+    display: flex; /* Per posizionare il footer in fondo */
+    flex-direction: column; /* Per posizionare il footer in fondo */
+}
+
+/* Navbar fissa full-width */
+.navbar-custom {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1030;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 15px 0;
+}
+
+/* Container full-width */
+.navbar-custom .container-fluid {
+    padding-left: 0; /* Rimuovi padding a sinistra */
+    padding-right: 0; /* Rimuovi padding a destra */
+}
+
+/* Brand styling */
+.navbar-brand {
+    color: white !important;
+    font-weight: 800; /* Più grassetto */
+    font-size: 2.2rem; /* Font più grande */
+    text-decoration: none;
+    letter-spacing: 1.5px; /* Spaziatura lettere */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); /* Ombra per il testo */
+    padding-left: 20px; /* Padding a sinistra per il brand */
+}
+
+.navbar-brand:hover {
+    color: #f8f9fa !important;
+}
+
+/* Toggler per mobile */
+.navbar-toggler {
+    border: 1px solid rgba(255,255,255,0.3);
+    margin-right: 20px; /* Margine a destra per il toggler */
+}
+
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e"); /* Icona bianca */
+}
+
+/* Stili per il menu hamburger aperto */
+.navbar-collapse.show {
+    background-color: rgba(0, 0, 0, 0.7); /* Sfondo scuro semitrasparente */
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.navbar-nav .nav-item {
+    margin-bottom: 5px;
+}
+
+.navbar-nav .nav-link {
+    color: white !important;
+    margin: 0 10px;
+    font-weight: 500;
+    transition: color 0.3s ease;
+    padding: 8px 15px; /* Padding per i link del menu */
+    border-radius: 5px;
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1); /* Sfondo chiaro all'hover */
+    color: #f3c5f8 !important; /* Colore più vivace all'hover */
+}
+
+/* Dropdown menu styling */
+.dropdown-menu {
+    background-color: rgba(102, 126, 234, 0.98); /* Leggermente più opaco */
+    border: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    padding: 10px 0;
+    border-radius: 8px;
+}
+
+.dropdown-item {
+    color: white !important;
+    padding: 10px 20px;
+}
+
+.dropdown-item:hover {
+    background-color: rgba(255,255,255,0.15); /* Sfondo più scuro all'hover */
+    color: white !important;
+}
+
+/* Content styling per demo */
+.content {
+    padding: 40px 20px;
+    min-height: 100vh; /* Assicurati che il contenuto principale si estenda */
+    flex-grow: 1; /* Permette al contenuto di occupare lo spazio rimanente */
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .navbar-custom .container-fluid {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    .navbar-brand {
+        font-size: 1.3rem;
+    }
+}
+
+/* Footer styling */
+.footer {
+    width: 100%;
+    line-height: 60px;
+    background: rgba(255, 255, 255, 0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: auto; /* Spinge il footer in fondo */
+}
+
+/* Stili specifici per la Landing Page (spostati qui) */
+.landing-container {
+    background: rgba(255, 255, 255, 0.15); /* Sfondo leggermente più opaco */
+    backdrop-filter: blur(15px); /* Effetto blur più pronunciato */
+    border-radius: 25px; /* Bordi più arrotondati */
+    padding: 50px; /* Padding aumentato */
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5); /* Ombra più intensa */
+    max-width: 800px; /* Larghezza massima aumentata */
+    width: 90%;
+    text-align: center;
+    margin: auto; /* Centra orizzontalmente */
+    flex-grow: 1; /* Permette al container di espandersi */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Centra verticalmente il contenuto all'interno del container */
+}
+
+.landing-container h1 {
+    font-size: 3.5rem; /* Font più grande */
+    font-weight: 800; /* Più grassetto */
+    margin-bottom: 25px;
+    background: linear-gradient(135deg, #f3c5f8 0%, #f5576c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 1px; /* Spaziatura lettere */
+}
+
+.landing-container p {
+    font-size: 1.3rem; /* Font più grande */
+    margin-bottom: 40px;
+    opacity: 0.95; /* Leggermente più visibile */
+    line-height: 1.6; /* Altezza riga migliorata */
+}
+
+.landing-container .btn-custom {
+    background: linear-gradient(135deg, #f5576c 0%, #f3c5f8 100%); /* Invertito il gradiente per un look più deciso */
+    border: none;
+    color: white;
+    font-weight: 700; /* Più grassetto */
+    padding: 15px 40px; /* Padding aumentato */
+    border-radius: 10px; /* Bordi più arrotondati */
+    transition: all 0.3s ease;
+    margin: 15px; /* Margine aumentato */
+    font-size: 1.2rem; /* Font più grande */
+    text-transform: uppercase; /* Testo maiuscolo */
+    letter-spacing: 0.5px;
+}
+
+.landing-container .btn-custom:hover {
+    transform: translateY(-5px); /* Effetto hover più pronunciato */
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.4); /* Ombra più intensa */
+    color: white;
+}
+
+.landing-container .btn-outline-custom {
+    border: 3px solid #f5576c; /* Bordo più spesso */
+    color: #f5576c;
+    background: transparent;
+    font-weight: 700; /* Più grassetto */
+    padding: 15px 40px; /* Padding aumentato */
+    border-radius: 10px; /* Bordi più arrotondati */
+    transition: all 0.3s ease;
+    margin: 15px; /* Margine aumentato */
+    font-size: 1.2rem; /* Font più grande */
+    text-transform: uppercase; /* Testo maiuscolo */
+    letter-spacing: 0.5px;
+}
+
+.landing-container .btn-outline-custom:hover {
+    background: #f5576c;
+    color: white;
+    transform: translateY(-5px);
+}

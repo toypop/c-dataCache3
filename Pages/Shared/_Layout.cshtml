@@ -44,15 +44,19 @@
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm border-bottom box-shadow mb-3">
-            <div class="container">
+        <nav class="navbar navbar-dark navbar-custom"> <!-- Rimosso navbar-expand-md per mostrare sempre l'hamburger -->
+            <div class="container-fluid"> <!-- Usiamo container-fluid per la larghezza massima -->
                 <a class="navbar-brand" asp-area="" asp-page="/Landing">Binance Crypto App</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-end"> <!-- Modificato justify-content-between a justify-content-end -->
-                    <partial name="_LoginPartial" />
+                <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <partial name="_LoginPartial" />
+                        </li>
+                    </ul>
                 </div>
             </div>
         </nav>

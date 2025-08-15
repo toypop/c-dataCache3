@@ -1,6 +1,10 @@
 {
   "Files": [
     {
+      "Id": "/home/toypop/vscodeFile/binanceLast2/c#dataCache3/wwwroot/css/site.css",
+      "PackagePath": "staticwebassets/css/site.css"
+    },
+    {
       "Id": "/home/toypop/vscodeFile/binanceLast2/c#dataCache3/wwwroot/index.html",
       "PackagePath": "staticwebassets/index.html"
     },
