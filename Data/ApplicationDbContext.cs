@@ -1,18 +1,19 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using BinanceDataCacheApp.Models;
 
 namespace BinanceDataCacheApp.Data
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext : IdentityDbContext<User>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {
         }
 
-        public DbSet<User> Users { get; set; }
-        public DbSet<BinanceApiKey> ApiKeys { get; set; }
-        public DbSet<BotConfiguration> BotConfigurations { get; set; }
+        // DbSet<User> non è più necessario qui, è gestito da IdentityDbContext
+        public DbSet<BinanceApiKey> ApiKeys { get; set; } = default!; // Aggiunto = default!
+        public DbSet<BotConfiguration> BotConfigurations { get; set; } = default!; // Aggiunto = default!
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -6,7 +6,7 @@ namespace BinanceDataCacheApp.Models
     public class BotConfiguration
     {
         public int Id { get; set; }
-        public int UserId { get; set; } // Foreign key to User
+        public string UserId { get; set; } // Foreign key to User (changed to string)
         
         [Required]
         public string Name { get; set; }

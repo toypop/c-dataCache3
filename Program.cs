@@ -24,6 +24,8 @@ using System.Linq;
 using Telegram.Bot; // Aggiungi questo using
 using BinanceDataCacheApp.Data; // Aggiungi questo using
 using Microsoft.EntityFrameworkCore; // Aggiungi questo using
+using Microsoft.AspNetCore.Identity; // Aggiungi questo using
+using BinanceDataCacheApp.Models; // Aggiungi questo using
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,13 +76,50 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
+// Aggiungi i servizi Identity
+builder.Services.AddDefaultIdentity<User>(options => options.SignIn.RequireConfirmedAccount = false)
+    .AddEntityFrameworkStores<ApplicationDbContext>();
+
+// Aggiungi il supporto per le Razor Pages
+builder.Services.AddRazorPages();
+
 var app = builder.Build();
 
 // Configura la pipeline di richiesta HTTP
 app.UseDefaultFiles(); // Permette di servire index.html per default
 app.UseStaticFiles(); // Abilita il servizio di file statici dalla cartella wwwroot
 
-app.MapHub<TickerHub>("/tickerHub");
+// Aggiungi i middleware di autenticazione e autorizzazione
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Mappa le Razor Pages
+app.MapRazorPages();
+
+// Mappa la pagina Index (dashboard) e proteggila
+app.MapGet("/Index", async context =>
+{
+    if (context.User.Identity.IsAuthenticated)
+    {
+        // Se l'utente è autenticato, servi il contenuto di wwwroot/index.html
+        await context.Response.SendFileAsync(
+            app.Environment.WebRootFileProvider.GetFileInfo("index.html").PhysicalPath);
+    }
+    else
+    {
+        // Se l'utente non è autenticato, reindirizza alla pagina di atterraggio
+        context.Response.Redirect("/Landing");
+    }
+});
+
+// Reindirizza la root alla logica di /Index (che gestirà autenticazione/reindirizzamento)
+app.MapGet("/", async context =>
+{
+    context.Response.Redirect("/Index");
+});
+
+// Proteggi il TickerHub
+app.MapHub<TickerHub>("/tickerHub").RequireAuthorization();
 
 // Applica le migrazioni del database all'avvio
 using (var scope = app.Services.CreateScope())

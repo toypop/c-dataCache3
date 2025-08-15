@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Identity; // Aggiungi questo using
 
 namespace BinanceDataCacheApp.Models
 {
-    public class User
+    public class User : IdentityUser // Modifica qui
     {
-        public int Id { get; set; }
-        public string Username { get; set; }
-        public string PasswordHash { get; set; } // Store hashed passwords, not plain text
+        // Id, Username, PasswordHash, ecc. sono già forniti da IdentityUser
+        // Puoi aggiungere proprietà personalizzate qui se necessario
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation properties
