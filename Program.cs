@@ -86,7 +86,7 @@ builder.Services.AddRazorPages();
 var app = builder.Build();
 
 // Configura la pipeline di richiesta HTTP
-app.UseDefaultFiles(); // Permette di servire index.html per default
+// app.UseDefaultFiles(); // Rimosso per garantire che la logica di autenticazione venga applicata alla root
 app.UseStaticFiles(); // Abilita il servizio di file statici dalla cartella wwwroot
 
 // Aggiungi i middleware di routing, autenticazione e autorizzazione nell'ordine corretto
