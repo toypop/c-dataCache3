@@ -51,12 +51,7 @@
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Index">Dashboard</a>
-                        </li>
-                    </ul>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-end"> <!-- Modificato justify-content-between a justify-content-end -->
                     <partial name="_LoginPartial" />
                 </div>
             </div>
@@ -69,6 +64,7 @@
         </main>
     </div>
 
+    <!-- Footer spostato fuori dal container principale -->
     <footer class="footer">
         <div class="container">
             &copy; 2025 - Binance Crypto App

@@ -16,7 +16,7 @@
         </form>
     </li>
 }
-else
+else if (ViewContext.RouteData.Values["page"]?.ToString() != "/Landing") // Mostra solo se non siamo sulla Landing Page
 {
     <li class="nav-item">
         <a class="nav-link text-white" id="register" asp-area="Identity" asp-page="/Account/Register">Registrati</a>

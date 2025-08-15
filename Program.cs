@@ -89,7 +89,8 @@ var app = builder.Build();
 app.UseDefaultFiles(); // Permette di servire index.html per default
 app.UseStaticFiles(); // Abilita il servizio di file statici dalla cartella wwwroot
 
-// Aggiungi i middleware di autenticazione e autorizzazione
+// Aggiungi i middleware di routing, autenticazione e autorizzazione nell'ordine corretto
+app.UseRouting(); // Assicurati che UseRouting sia prima di UseAuthentication/UseAuthorization
 app.UseAuthentication();
 app.UseAuthorization();
 

@@ -2,94 +2,105 @@
 @model LandingModel
 @{
     ViewData["Title"] = "Benvenuto";
+    Layout = "_Layout"; // Assicurati che usi il layout
 }
 
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@ViewData["Title"] - Binance Crypto App</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            text-align: center;
-        }
-        .landing-container {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-            max-width: 700px;
-            width: 90%;
-        }
-        h1 {
-            font-weight: 700;
-            margin-bottom: 20px;
-            background: linear-gradient(135deg, #f3c5f8 0%, #f5576c 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        p {
-            font-size: 1.1rem;
-            margin-bottom: 30px;
-            opacity: 0.9;
-        }
-        .btn-custom {
-            background: linear-gradient(135deg, #f3c5f8 0%, #f5576c 100%);
-            border: none;
-            color: white;
-            font-weight: 600;
-            padding: 12px 30px;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            margin: 10px;
-        }
-        .btn-custom:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-            color: white;
-        }
-        .btn-outline-custom {
-            border: 2px solid #f5576c;
-            color: #f5576c;
-            background: transparent;
-            font-weight: 600;
-            padding: 12px 30px;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            margin: 10px;
-        }
-        .btn-outline-custom:hover {
-            background: #f5576c;
-            color: white;
-            transform: translateY(-3px);
-        }
-    </style>
-</head>
-<body>
-    <div class="landing-container">
-        <h1>Benvenuto nella Binance Crypto App</h1>
-        <p>Monitora i prezzi delle criptovalute in tempo reale, gestisci le tue chiavi API e configura i tuoi bot di trading personalizzati.</p>
-        <div class="d-flex justify-content-center mt-4">
-            <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-custom">
-                <i class="fas fa-sign-in-alt me-2"></i>Accedi
-            </a>
-            <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-outline-custom">
-                <i class="fas fa-user-plus me-2"></i>Registrati
-            </a>
-        </div>
+<style>
+    /* Stili specifici per la Landing Page */
+    body {
+        display: flex;
+        flex-direction: column; /* Permette al footer di stare in fondo */
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh; /* Assicura che il body occupi tutta l'altezza */
+        margin: 0;
+        padding: 0;
+    }
+
+    .landing-container {
+        background: rgba(255, 255, 255, 0.15); /* Sfondo leggermente più opaco */
+        backdrop-filter: blur(15px); /* Effetto blur più pronunciato */
+        border-radius: 25px; /* Bordi più arrotondati */
+        padding: 50px; /* Padding aumentato */
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5); /* Ombra più intensa */
+        max-width: 800px; /* Larghezza massima aumentata */
+        width: 90%;
+        text-align: center;
+        margin: auto; /* Centra orizzontalmente */
+        flex-grow: 1; /* Permette al container di espandersi */
+        display: flex;
+        flex-direction: column;
+        justify-content: center; /* Centra verticalmente il contenuto all'interno del container */
+    }
+
+    h1 {
+        font-size: 3.5rem; /* Font più grande */
+        font-weight: 800; /* Più grassetto */
+        margin-bottom: 25px;
+        background: linear-gradient(135deg, #f3c5f8 0%, #f5576c 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: 1px; /* Spaziatura lettere */
+    }
+
+    p {
+        font-size: 1.3rem; /* Font più grande */
+        margin-bottom: 40px;
+        opacity: 0.95; /* Leggermente più visibile */
+        line-height: 1.6; /* Altezza riga migliorata */
+    }
+
+    .btn-custom {
+        background: linear-gradient(135deg, #f5576c 0%, #f3c5f8 100%); /* Invertito il gradiente per un look più deciso */
+        border: none;
+        color: white;
+        font-weight: 700; /* Più grassetto */
+        padding: 15px 40px; /* Padding aumentato */
+        border-radius: 10px; /* Bordi più arrotondati */
+        transition: all 0.3s ease;
+        margin: 15px; /* Margine aumentato */
+        font-size: 1.2rem; /* Font più grande */
+        text-transform: uppercase; /* Testo maiuscolo */
+        letter-spacing: 0.5px;
+    }
+
+    .btn-custom:hover {
+        transform: translateY(-5px); /* Effetto hover più pronunciato */
+        box-shadow: 0 12px 25px rgba(0, 0, 0, 0.4); /* Ombra più intensa */
+        color: white;
+    }
+
+    .btn-outline-custom {
+        border: 3px solid #f5576c; /* Bordo più spesso */
+        color: #f5576c;
+        background: transparent;
+        font-weight: 700; /* Più grassetto */
+        padding: 15px 40px; /* Padding aumentato */
+        border-radius: 10px; /* Bordi più arrotondati */
+        transition: all 0.3s ease;
+        margin: 15px; /* Margine aumentato */
+        font-size: 1.2rem; /* Font più grande */
+        text-transform: uppercase; /* Testo maiuscolo */
+        letter-spacing: 0.5px;
+    }
+
+    .btn-outline-custom:hover {
+        background: #f5576c;
+        color: white;
+        transform: translateY(-5px);
+    }
+</style>
+
+<div class="landing-container">
+    <h1>Benvenuto nella Binance Crypto App</h1>
+    <p>Monitora i prezzi delle criptovalute in tempo reale, gestisci le tue chiavi API e configura i tuoi bot di trading personalizzati.</p>
+    <div class="d-flex justify-content-center mt-4">
+        <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-custom">
+            <i class="fas fa-sign-in-alt me-2"></i>Accedi
+        </a>
+        <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-outline-custom">
+            <i class="fas fa-user-plus me-2"></i>Registrati
+        </a>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+</div>
