@@ -26,6 +26,7 @@ using BinanceDataCacheApp.Data; // Aggiungi questo using
 using Microsoft.EntityFrameworkCore; // Aggiungi questo using
 using Microsoft.AspNetCore.Identity; // Aggiungi questo using
 using BinanceDataCacheApp.Models; // Aggiungi questo using
+using BinanceDataCacheApp.Services; // Aggiungi questo using
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,6 +66,7 @@ builder.Services.AddLogging(configure =>
 // Aggiungi servizi alla pipeline
 builder.Services.AddSingleton<BinanceDataCache>();
 builder.Services.AddSingleton<BinanceStreamManager>();
+builder.Services.AddSingleton<IEncryptionService, EncryptionService>(); // Registra il servizio di crittografia
 builder.Services.AddSignalR();
 builder.Services.AddHostedService<BinanceStreamHostedService>();
 
@@ -173,17 +175,9 @@ public class BinanceStreamHostedService : IHostedService
     {
         _logger.LogInformation("Binance Stream Hosted Service avviato.");
         await _telegramService.SendMessageAsync("**TEST:** L'applicazione Binance Data Cache è stata avviata con successo!");
-        // Avvia gli stream per BTCUSDT
-        await _streamManager.StartTickerStreamAsync("BTCUSDT");
-        
-        // Avvia gli stream Kline per BTCUSDT per tutti gli intervalli disponibili
-        foreach (KlineInterval interval in Enum.GetValues(typeof(KlineInterval)))
-        {
-            // Salta gli intervalli che non vogliamo sottoscrivere
-            if (interval == KlineInterval.OneSecond) continue;
-
-            await _streamManager.StartKlineStreamAsync("BTCUSDT", interval);
-        }
+        // Gli stream Binance non vengono più avviati globalmente all'avvio dell'applicazione.
+        // Vengono avviati per utente tramite TickerHub quando l'utente sottoscrive un ticker.
+        // Rimuovi le chiamate a StartTickerStreamAsync e StartKlineStreamAsync qui.
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)

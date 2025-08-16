@@ -15,6 +15,7 @@ namespace BinanceDataCacheApp.Models
         public string SecretKey { get; set; } // This will be stored encrypted
         
         public string Description { get; set; } // e.g., "Main Trading Key", "Bot 1 Key"
+        public bool IsActive { get; set; } = false; // Nuovo campo per indicare se la chiave è attiva
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime LastUsedAt { get; set; }
 

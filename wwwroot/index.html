@@ -441,20 +441,45 @@
             <small class="text-muted">Real-time Market Data</small>
         </div>
 
+        <!-- API Key Management -->
+        <div class="control-section">
+            <h5><i class="fas fa-key"></i> Gestione API Key</h5>
+            <div class="mb-3">
+                <label for="binanceApiKeyInput" class="form-label text-white">API Key:</label>
+                <input type="text" id="binanceApiKeyInput" class="form-control" placeholder="Inserisci la tua API Key Binance">
+            </div>
+            <div class="mb-3">
+                <label for="binanceSecretKeyInput" class="form-label text-white">Secret Key:</label>
+                <input type="password" id="binanceSecretKeyInput" class="form-control" placeholder="Inserisci la tua Secret Key Binance">
+            </div>
+            <div class="mb-3">
+                <label for="binanceKeyDescriptionInput" class="form-label text-white">Descrizione (opzionale):</label>
+                <input type="text" id="binanceKeyDescriptionInput" class="form-control" placeholder="Es. Chiave principale, Bot di trading">
+            </div>
+            <div class="d-grid gap-2">
+                <button id="saveApiKeysButton" class="btn btn-custom">
+                    <i class="fas fa-save me-2"></i>Salva Chiavi API
+                </button>
+            </div>
+            <div id="apiKeyStatusMessage" class="mt-3 text-center text-warning" style="font-size: 0.9em;">
+                <!-- Messaggio sullo stato delle chiavi API -->
+            </div>
+        </div>
+
         <!-- Ticker Controls -->
         <div class="control-section">
             <h5><i class="fas fa-coins"></i> Ticker Control</h5>
             <div class="mb-3">
                 <label for="cryptoSelect" class="form-label text-white">Seleziona Ticker:</label>
-                <select id="cryptoSelect" class="form-select">
+                <select id="cryptoSelect" class="form-select" disabled>
                     <!-- Opzioni ticker saranno popolate da JS -->
                 </select>
             </div>
             <div class="d-grid gap-2">
-                <button id="subscribeButton" class="btn btn-custom">
+                <button id="subscribeButton" class="btn btn-custom" disabled>
                     <i class="fas fa-plus me-2"></i>Sottoscrivi
                 </button>
-                <button id="unsubscribeButton" class="btn btn-outline-custom">
+                <button id="unsubscribeButton" class="btn btn-outline-custom" disabled>
                     <i class="fas fa-minus me-2"></i>Disiscriviti
                 </button>
             </div>
@@ -463,7 +488,6 @@
     
         <!-- Connection Status -->
         <div class="control-section-status">
-            <!-- <h5><i class="fas fa-wifi"></i> Status</h5> -->
             <div class="d-flex align-items-center justify-content-center">
                 <h5><i class="fas fa-wifi"></i></h5>
                 <div class="status-indicator me-1"></div>
@@ -618,6 +642,19 @@
         const confirmButton = document.getElementById('confirmButton');
         const cancelButton = document.getElementById('cancelButton');
         const closeConfirmationModalButton = document.getElementById('closeConfirmationModal');
+        
+        // Nuovi elementi DOM per la gestione delle API Key
+        const binanceApiKeyInput = document.getElementById('binanceApiKeyInput');
+        const binanceSecretKeyInput = document.getElementById('binanceSecretKeyInput');
+        const binanceKeyDescriptionInput = document.getElementById('binanceKeyDescriptionInput');
+        const saveApiKeysButton = document.getElementById('saveApiKeysButton');
+        const apiKeyStatusMessage = document.getElementById('apiKeyStatusMessage');
+
+        // Elementi DOM per i controlli del ticker (da abilitare/disabilitare)
+        const cryptoSelect = document.getElementById('cryptoSelect');
+        const subscribeButton = document.getElementById('subscribeButton');
+        const unsubscribeButton = document.getElementById('unsubscribeButton');
+
 
         // Variabili di Stato Globali
         let isBalanceObscured = false;
@@ -863,6 +900,11 @@
             // La visualizzazione è gestita dal bottone nel modale.
         });
 
+        // Nuovo listener per le notifiche inviate dall'Hub
+        connection.on("ShowNotification", (message, type) => {
+            showSubscriptionMessage(message, type);
+        });
+
         // ====================================================================
         // --- LISTENER EVENTI UTENTE ---
         // ====================================================================
@@ -885,8 +927,54 @@
             }
         });
 
-        document.getElementById('subscribeButton').addEventListener('click', async () => {
-            const symbol = document.getElementById('cryptoSelect').value;
+        // Gestione salvataggio API Keys
+        saveApiKeysButton.addEventListener('click', async () => {
+            const apiKey = binanceApiKeyInput.value.trim();
+            const secretKey = binanceSecretKeyInput.value.trim();
+            const description = binanceKeyDescriptionInput.value.trim();
+
+            if (!apiKey || !secretKey) {
+                showSubscriptionMessage("API Key e Secret Key non possono essere vuote.", 'error');
+                return;
+            }
+
+            try {
+                const success = await connection.invoke("SaveBinanceApiKeys", apiKey, secretKey, description);
+                if (success) {
+                    showSubscriptionMessage("Chiavi API Binance salvate con successo!", 'success');
+                    binanceApiKeyInput.value = ''; // Pulisci i campi dopo il salvataggio
+                    binanceSecretKeyInput.value = '';
+                    binanceKeyDescriptionInput.value = '';
+                    await checkApiKeysAndToggleControls(); // Aggiorna lo stato dei controlli
+                } else {
+                    showSubscriptionMessage("Errore durante il salvataggio delle chiavi API.", 'error');
+                }
+            } catch (err) {
+                console.error("Errore SignalR durante il salvataggio delle chiavi API:", err);
+                showSubscriptionMessage("Errore di comunicazione con il server durante il salvataggio delle chiavi.", 'error');
+            }
+        });
+
+        // Mobile sidebar toggle
+        document.getElementById('sidebarToggle').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('show');
+        });
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(event.target) && 
+                !toggle.contains(event.target) && 
+                sidebar.classList.contains('show')) {
+                sidebar.classList.remove('show');
+            }
+        });
+
+        subscribeButton.addEventListener('click', async () => {
+            const symbol = cryptoSelect.value;
             if (symbol && !subscribedSymbols.has(symbol)) {
                 try {
                     await connection.invoke("SubscribeToTicker", symbol);
@@ -915,7 +1003,6 @@
                         document.getElementById(`${symbol}_decline_percentage`).textContent = `-`;
                     }
 
-                    // Seleziona il Kline salvato per la visualizzazione iniziale
                     const initialKlineInterval = selectedKlineIntervals[symbol];
                     if (initialKlineInterval) {
                         const klineData = await connection.invoke("GetKlineData", symbol, initialKlineInterval);
@@ -931,12 +1018,8 @@
                             klineDisplayElement.innerHTML = `<strong>TimeFrame:</strong> Dati non disponibili`;
                         }
                     } else {
-                        // Se non c'è una selezione salvata, mostra il messaggio di default
                         document.getElementById(`${symbol}_kline_display`).innerHTML = `Seleziona un intervallo e clicca "Visualizza Kline Selezionata"`;
                     }
-
-                    await connection.invoke("SubscribeToTicker", symbol);
-                    console.log(`Riconnesso e sottoscritto a: ${symbol}`);
                 } catch (err) {
                     console.error(`Errore durante la sottoscrizione a ${symbol}:`, err);
                     showSubscriptionMessage(`Errore durante la sottoscrizione a ${symbol}.`, 'error');
@@ -947,8 +1030,8 @@
             }
         });
 
-        document.getElementById('unsubscribeButton').addEventListener('click', async () => {
-            const symbol = document.getElementById('cryptoSelect').value;
+        unsubscribeButton.addEventListener('click', async () => {
+            const symbol = cryptoSelect.value;
             if (symbol && subscribedSymbols.has(symbol)) {
                 try {
                     await connection.invoke("UnsubscribeFromTicker", symbol);
@@ -1085,6 +1168,36 @@
         // --- FUNZIONE DI INIZIALIZZAZIONE ---
         // ====================================================================
 
+        async function checkApiKeysAndToggleControls() {
+            try {
+                const hasKeys = await connection.invoke("HasBinanceApiKeysConfigured");
+                if (hasKeys) {
+                    cryptoSelect.disabled = false;
+                    subscribeButton.disabled = false;
+                    unsubscribeButton.disabled = false;
+                    apiKeyStatusMessage.innerHTML = '<i class="fas fa-check-circle text-success me-1"></i> Chiavi API configurate.';
+                    await populateCryptoSymbols(); // Popola i simboli solo se le chiavi sono presenti
+                    await updateUSDCBalance(); // Aggiorna il saldo solo se le chiavi sono presenti
+                } else {
+                    cryptoSelect.disabled = true;
+                    subscribeButton.disabled = true;
+                    unsubscribeButton.disabled = true;
+                    apiKeyStatusMessage.innerHTML = '<i class="fas fa-exclamation-triangle text-warning me-1"></i> Inserisci le tue chiavi API Binance per iniziare.';
+                    // Pulisci i ticker esistenti se non ci sono chiavi
+                    tickerList.innerHTML = '<div class="loading-spinner">Nessun ticker visualizzato. Inserisci le chiavi API.</div>';
+                    document.getElementById('activeTickers').textContent = '0';
+                    document.getElementById('totalBalanceValue').textContent = 'N/A';
+                }
+            } catch (err) {
+                console.error("Errore durante il controllo delle chiavi API:", err);
+                apiKeyStatusMessage.innerHTML = '<i class="fas fa-times-circle text-danger me-1"></i> Errore nel controllo chiavi API.';
+                showSubscriptionMessage("Errore nel controllo delle chiavi API. Riprova più tardi.", 'error');
+                cryptoSelect.disabled = true;
+                subscribeButton.disabled = true;
+                unsubscribeButton.disabled = true;
+            }
+        }
+
         async function start() {
             try {
                 await connection.start();
@@ -1097,85 +1210,90 @@
                 loadBalanceObscurityState();
 
                 // Popola UI in base ai dati caricati
-                populateModalKlineIntervals(); // Deve essere popolato prima di pre-selezionare
+                populateModalKlineIntervals();
                 applyBalanceObscurityState();
-                await populateCryptoSymbols(); // Popola la dropdown dei simboli crypto
+                
+                // Controlla le chiavi API e abilita/disabilita i controlli di conseguenza
+                await checkApiKeysAndToggleControls();
 
-                // Sottoscrivi ai ticker salvati o al default
-                for (const symbol of subscribedSymbols) {
-                    let tickerElement = document.getElementById(`${symbol}_display`);
-                    if (!tickerElement) {
-                        tickerElement = document.createElement('div');
-                        tickerElement.id = `${symbol}_display`;
-                        tickerElement.className = 'ticker-card fade-in';
-                        tickerElement.innerHTML = `
-                            <div class="ticker-symbol">${symbol}</div>
-                            <div class="ticker-price">Loading...</div>
-                            <div class="decline-percentage" id="${symbol}_decline_percentage"></div>
-                            <div class="kline-info" id="${symbol}_kline_display"></div>
-                        `;
-                        document.getElementById('tickerList').appendChild(tickerElement);
-                    }
-                    if (cryptoPercentages[symbol] !== undefined) {
-                        document.getElementById(`${symbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[symbol]}%`;
-                    } else {
-                        document.getElementById(`${symbol}_decline_percentage`).textContent = `-`;
-                    }
-
-                    // Seleziona il Kline salvato per la visualizzazione iniziale
-                    const initialKlineInterval = selectedKlineIntervals[symbol];
-                    if (initialKlineInterval) {
-                        const klineData = await connection.invoke("GetKlineData", symbol, initialKlineInterval);
-                        const klineDisplayElement = document.getElementById(`${symbol}_kline_display`);
-                        if (klineDisplayElement && klineData) {
-                            const intervalDisplayFormatted = intervalMap[initialKlineInterval] || initialKlineInterval;
-                            klineDisplayElement.innerHTML = `
-                                <strong>TimeFrame (${intervalDisplayFormatted})</strong><br>
-                                Open: $${klineData.openPrice.toFixed(2)}<br>
-                                Close: $${klineData.closePrice.toFixed(2)}
-                            `;
-                        } else if (klineDisplayElement) {
-                            klineDisplayElement.innerHTML = `<strong>TimeFrame:</strong> Dati non disponibili`;
-                        }
-                    } else {
-                        // Se non c'è una selezione salvata, mostra il messaggio di default
-                        document.getElementById(`${symbol}_kline_display`).innerHTML = `Seleziona un intervallo e clicca "Visualizza Kline Selezionata"`;
-                    }
-
-                    await connection.invoke("SubscribeToTicker", symbol);
-                    console.log(`Riconnesso e sottoscritto a: ${symbol}`);
-                }
-
-                if (subscribedSymbols.size === 0) {
-                    const defaultSymbol = document.getElementById('cryptoSelect').value;
-                    if (defaultSymbol) {
-                        await connection.invoke("SubscribeToTicker", defaultSymbol);
-                        subscribedSymbols.add(defaultSymbol);
-                        console.log(`Sottoscritto a simbolo di default: ${defaultSymbol}`);
-                        let tickerElement = document.getElementById(`${defaultSymbol}_display`);
+                // Sottoscrivi ai ticker salvati SOLO SE le chiavi sono configurate
+                const hasKeys = await connection.invoke("HasBinanceApiKeysConfigured");
+                if (hasKeys) {
+                    for (const symbol of subscribedSymbols) {
+                        let tickerElement = document.getElementById(`${symbol}_display`);
                         if (!tickerElement) {
                             tickerElement = document.createElement('div');
-                            tickerElement.id = `${defaultSymbol}_display`;
+                            tickerElement.id = `${symbol}_display`;
                             tickerElement.className = 'ticker-card fade-in';
                             tickerElement.innerHTML = `
-                                <div class="ticker-symbol">${defaultSymbol}</div>
+                                <div class="ticker-symbol">${symbol}</div>
                                 <div class="ticker-price">Loading...</div>
-                                <div class="decline-percentage" id="${defaultSymbol}_decline_percentage"></div>
-                                <div class="kline-info" id="${defaultSymbol}_kline_display"></div>
+                                <div class="decline-percentage" id="${symbol}_decline_percentage"></div>
+                                <div class="kline-info" id="${symbol}_kline_display"></div>
                             `;
                             document.getElementById('tickerList').appendChild(tickerElement);
                         }
-                        if (cryptoPercentages[defaultSymbol] !== undefined) {
-                            document.getElementById(`${defaultSymbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[defaultSymbol]}%`;
+                        if (cryptoPercentages[symbol] !== undefined) {
+                            document.getElementById(`${symbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[symbol]}%`;
                         } else {
-                            document.getElementById(`${defaultSymbol}_decline_percentage`).textContent = `-`;
+                            document.getElementById(`${symbol}_decline_percentage`).textContent = `-`;
                         }
-                        document.getElementById(`${defaultSymbol}_kline_display`).innerHTML = `Seleziona un intervallo e clicca "Visualizza Kline Selezionata"`; // Default per kline
+
+                        const initialKlineInterval = selectedKlineIntervals[symbol];
+                        if (initialKlineInterval) {
+                            const klineData = await connection.invoke("GetKlineData", symbol, initialKlineInterval);
+                            const klineDisplayElement = document.getElementById(`${symbol}_kline_display`);
+                            if (klineDisplayElement && klineData) {
+                                const intervalDisplayFormatted = intervalMap[initialKlineInterval] || initialKlineInterval;
+                                klineDisplayElement.innerHTML = `
+                                    <strong>TimeFrame (${intervalDisplayFormatted})</strong><br>
+                                    Open: $${klineData.openPrice.toFixed(2)}<br>
+                                    Close: $${klineData.closePrice.toFixed(2)}
+                                `;
+                            } else if (klineDisplayElement) {
+                                klineDisplayElement.innerHTML = `<strong>TimeFrame:</strong> Dati non disponibili`;
+                            }
+                        } else {
+                            document.getElementById(`${symbol}_kline_display`).innerHTML = `Seleziona un intervallo e clicca "Visualizza Kline Selezionata"`;
+                        }
+
+                        await connection.invoke("SubscribeToTicker", symbol);
+                        console.log(`Riconnesso e sottoscritto a: ${symbol}`);
                     }
+
+                    // Rimuovi la sottoscrizione automatica al default se non ci sono simboli salvati
+                    // Questa logica è ora gestita dal checkApiKeysAndToggleControls e dalla sottoscrizione dei simboli salvati.
+                    // if (subscribedSymbols.size === 0) {
+                    //     const defaultSymbol = document.getElementById('cryptoSelect').value;
+                    //     if (defaultSymbol) {
+                    //         await connection.invoke("SubscribeToTicker", defaultSymbol);
+                    //         subscribedSymbols.add(defaultSymbol);
+                    //         console.log(`Sottoscritto a simbolo di default: ${defaultSymbol}`);
+                    //         let tickerElement = document.getElementById(`${defaultSymbol}_display`);
+                    //         if (!tickerElement) {
+                    //             tickerElement = document.createElement('div');
+                    //             tickerElement.id = `${defaultSymbol}_display`;
+                    //             tickerElement.className = 'ticker-card fade-in';
+                    //             tickerElement.innerHTML = `
+                    //                 <div class="ticker-symbol">${defaultSymbol}</div>
+                    //                 <div class="ticker-price">Loading...</div>
+                    //                 <div class="decline-percentage" id="${defaultSymbol}_decline_percentage"></div>
+                    //                 <div class="kline-info" id="${defaultSymbol}_kline_display"></div>
+                    //             `;
+                    //             document.getElementById('tickerList').appendChild(tickerElement);
+                    //         }
+                    //         if (cryptoPercentages[defaultSymbol] !== undefined) {
+                    //             document.getElementById(`${defaultSymbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[defaultSymbol]}%`;
+                    //         } else {
+                    //             document.getElementById(`${defaultSymbol}_decline_percentage`).textContent = `-`;
+                    //         }
+                    //         document.getElementById(`${defaultSymbol}_kline_display`).innerHTML = `Seleziona un intervallo e clicca "Visualizza Kline Selezionata"`;
+                    //     }
+                    // }
                 }
                 
                 updateActiveTickersCount();
-                updateUSDCBalance();
+                // updateUSDCBalance(); // Già chiamato in checkApiKeysAndToggleControls se le chiavi sono presenti
 
             } catch (err) {
                 console.error("Errore durante l'inizializzazione dell'applicazione:", err);
