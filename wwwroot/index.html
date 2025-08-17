@@ -447,11 +447,11 @@
             <!-- API Key Management Section -->
             <div class="accordion-item control-section">
                 <h2 class="accordion-header" id="headingApiKeys">
-                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseApiKeys" aria-expanded="true" aria-controls="collapseApiKeys">
+                    <button class="accordion-button collapsed type="button" data-bs-toggle="collapse" data-bs-target="#collapseApiKeys" aria-expanded="false" aria-controls="collapseApiKeys">
                         <i class="fas fa-key me-2"></i> Gestione API Key
                     </button>
                 </h2>
-                <div id="collapseApiKeys" class="accordion-collapse collapse show" aria-labelledby="headingApiKeys" data-bs-parent="#sidebarAccordion">
+                <div id="collapseApiKeys" class="accordion-collapse collapse" aria-labelledby="headingApiKeys" data-bs-parent="#sidebarAccordion">
                     <div class="accordion-body">
                         <div class="mb-3">
                             <label for="binanceApiKeyInput" class="form-label text-white">API Key:</label>
@@ -504,6 +504,34 @@
                 </div>
             </div>
 
+            <!-- NUOVA SEZIONE: Telegram Settings -->
+            <div class="accordion-item control-section">
+                <h2 class="accordion-header" id="headingTelegramSettings">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTelegramSettings" aria-expanded="false" aria-controls="collapseTelegramSettings">
+                        <i class="fab fa-telegram-plane me-2"></i> Impostazioni Telegram
+                    </button>
+                </h2>
+                <div id="collapseTelegramSettings" class="accordion-collapse collapse" aria-labelledby="headingTelegramSettings" data-bs-parent="#sidebarAccordion">
+                    <div class="accordion-body">
+                        <div class="mb-3">
+                            <label for="telegramChatIdInput" class="form-label text-white">Chat ID:</label>
+                            <input type="text" id="telegramChatIdInput" class="form-control" placeholder="Inserisci la Chat ID di Telegram">
+                        </div>
+                        <div class="mb-3">
+                            <label for="telegramBotTokenInput" class="form-label text-white">Bot Token:</label>
+                            <input type="password" id="telegramBotTokenInput" class="form-control" placeholder="Inserisci il Bot Token di Telegram">
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button id="saveTelegramSettingsButton" class="btn btn-custom">
+                                <i class="fas fa-save me-2"></i>Salva Impostazioni Telegram
+                            </button>
+                        </div>
+                        <div id="telegramStatusMessage" class="mt-3 text-center text-warning" style="font-size: 0.9em;">
+                            <!-- Messaggio sullo stato delle impostazioni Telegram -->
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     
         <!-- Connection Status -->
