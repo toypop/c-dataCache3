@@ -946,6 +946,7 @@
                     binanceSecretKeyInput.value = '';
                     binanceKeyDescriptionInput.value = '';
                     await checkApiKeysAndToggleControls(); // Aggiorna lo stato dei controlli
+                    location.reload();
                 } else {
                     showSubscriptionMessage("Errore durante il salvataggio delle chiavi API.", 'error');
                 }
