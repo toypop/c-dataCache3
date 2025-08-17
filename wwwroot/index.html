@@ -441,50 +441,70 @@
             <small class="text-muted">Real-time Market Data</small>
         </div>
 
-        <!-- API Key Management -->
-        <div class="control-section">
-            <h5><i class="fas fa-key"></i> Gestione API Key</h5>
-            <div class="mb-3">
-                <label for="binanceApiKeyInput" class="form-label text-white">API Key:</label>
-                <input type="text" id="binanceApiKeyInput" class="form-control" placeholder="Inserisci la tua API Key Binance">
-            </div>
-            <div class="mb-3">
-                <label for="binanceSecretKeyInput" class="form-label text-white">Secret Key:</label>
-                <input type="password" id="binanceSecretKeyInput" class="form-control" placeholder="Inserisci la tua Secret Key Binance">
-            </div>
-            <div class="mb-3">
-                <label for="binanceKeyDescriptionInput" class="form-label text-white">Descrizione (opzionale):</label>
-                <input type="text" id="binanceKeyDescriptionInput" class="form-control" placeholder="Es. Chiave principale, Bot di trading">
-            </div>
-            <div class="d-grid gap-2">
-                <button id="saveApiKeysButton" class="btn btn-custom">
-                    <i class="fas fa-save me-2"></i>Salva Chiavi API
-                </button>
-            </div>
-            <div id="apiKeyStatusMessage" class="mt-3 text-center text-warning" style="font-size: 0.9em;">
-                <!-- Messaggio sullo stato delle chiavi API -->
-            </div>
-        </div>
+        <!-- Accordion Menu for Controls -->
+        <div class="accordion" id="sidebarAccordion">
 
-        <!-- Ticker Controls -->
-        <div class="control-section">
-            <h5><i class="fas fa-coins"></i> Ticker Control</h5>
-            <div class="mb-3">
-                <label for="cryptoSelect" class="form-label text-white">Seleziona Ticker:</label>
-                <select id="cryptoSelect" class="form-select" disabled>
-                    <!-- Opzioni ticker saranno popolate da JS -->
-                </select>
+            <!-- API Key Management Section -->
+            <div class="accordion-item control-section">
+                <h2 class="accordion-header" id="headingApiKeys">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseApiKeys" aria-expanded="true" aria-controls="collapseApiKeys">
+                        <i class="fas fa-key me-2"></i> Gestione API Key
+                    </button>
+                </h2>
+                <div id="collapseApiKeys" class="accordion-collapse collapse show" aria-labelledby="headingApiKeys" data-bs-parent="#sidebarAccordion">
+                    <div class="accordion-body">
+                        <div class="mb-3">
+                            <label for="binanceApiKeyInput" class="form-label text-white">API Key:</label>
+                            <input type="text" id="binanceApiKeyInput" class="form-control" placeholder="Inserisci la tua API Key Binance">
+                        </div>
+                        <div class="mb-3">
+                            <label for="binanceSecretKeyInput" class="form-label text-white">Secret Key:</label>
+                            <input type="password" id="binanceSecretKeyInput" class="form-control" placeholder="Inserisci la tua Secret Key Binance">
+                        </div>
+                        <div class="mb-3">
+                            <label for="binanceKeyDescriptionInput" class="form-label text-white">Descrizione (opzionale):</label>
+                            <input type="text" id="binanceKeyDescriptionInput" class="form-control" placeholder="Es. Chiave principale, Bot di trading">
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button id="saveApiKeysButton" class="btn btn-custom">
+                                <i class="fas fa-save me-2"></i>Salva Chiavi API
+                            </button>
+                        </div>
+                        <div id="apiKeyStatusMessage" class="mt-3 text-center text-warning" style="font-size: 0.9em;">
+                            <!-- Messaggio sullo stato delle chiavi API -->
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="d-grid gap-2">
-                <button id="subscribeButton" class="btn btn-custom" disabled>
-                    <i class="fas fa-plus me-2"></i>Sottoscrivi
-                </button>
-                <button id="unsubscribeButton" class="btn btn-outline-custom" disabled>
-                    <i class="fas fa-minus me-2"></i>Disiscriviti
-                </button>
-            </div>
-        </div>
 
+            <!-- Ticker Controls Section -->
+            <div class="accordion-item control-section">
+                <h2 class="accordion-header" id="headingTickerControl">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTickerControl" aria-expanded="false" aria-controls="collapseTickerControl">
+                        <i class="fas fa-coins me-2"></i> Ticker Control
+                    </button>
+                </h2>
+                <div id="collapseTickerControl" class="accordion-collapse collapse" aria-labelledby="headingTickerControl" data-bs-parent="#sidebarAccordion">
+                    <div class="accordion-body">
+                        <div class="mb-3">
+                            <label for="cryptoSelect" class="form-label text-white">Seleziona Ticker:</label>
+                            <select id="cryptoSelect" class="form-select" disabled>
+                                <!-- Opzioni ticker saranno popolate da JS -->
+                            </select>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button id="subscribeButton" class="btn btn-custom" disabled>
+                                <i class="fas fa-plus me-2"></i>Sottoscrivi
+                            </button>
+                            <button id="unsubscribeButton" class="btn btn-outline-custom" disabled>
+                                <i class="fas fa-minus me-2"></i>Disiscriviti
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
     
         <!-- Connection Status -->
         <div class="control-section-status">
