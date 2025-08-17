@@ -70,8 +70,8 @@ builder.Services.AddSingleton<IEncryptionService, EncryptionService>(); // Regis
 builder.Services.AddSignalR();
 builder.Services.AddHostedService<BinanceStreamHostedService>();
 
-// Registra il servizio di notifica Telegram
-builder.Services.AddSingleton<ITelegramNotificationService, TelegramNotificationService>();
+// Registra il servizio di notifica Telegram come Scoped
+builder.Services.AddScoped<ITelegramNotificationService, TelegramNotificationService>();
 
 // Configura il DbContext per PostgreSQL
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -141,40 +141,89 @@ public class BinanceStreamHostedService : IHostedService
     private readonly ILogger<BinanceStreamHostedService> _logger;
     private readonly BinanceDataCache _cache;
     private readonly IHubContext<TickerHub> _hubContext;
-    private readonly ITelegramNotificationService _telegramService; // Aggiungi questa linea
+    private readonly IServiceScopeFactory _scopeFactory; // Usa IServiceScopeFactory per risolvere servizi scoped
 
     public BinanceStreamHostedService(
         BinanceStreamManager streamManager,
         ILogger<BinanceStreamHostedService> logger,
         BinanceDataCache cache,
         IHubContext<TickerHub> hubContext,
-        ITelegramNotificationService telegramService) // Aggiungi telegramService qui
+        IServiceScopeFactory scopeFactory) // Inietta IServiceScopeFactory
     {
         _streamManager = streamManager;
         _logger = logger;
         _cache = cache;
-        _hubContext = hubContext; // Inizializza l'HubContext
-        _telegramService = telegramService; // Inizializza il servizio Telegram
+        _hubContext = hubContext; 
+        _scopeFactory = scopeFactory; // Inizializza serviceProvider
 
         _cache.OnTickerUpdated += async (tickerData) =>
         {
             // Invia l'aggiornamento ai client SignalR direttamente
             await _hubContext.Clients.All.SendAsync("ReceiveTickerUpdate", tickerData);
 
-            // Esempio: invia un messaggio Telegram se il prezzo di BTCUSDT scende sotto un certo livello
-            // Questa logica può essere raffinata in base alla percentuale di discesa che hai menzionato
-            if (tickerData.Symbol == "BTCUSDT" && tickerData.Price < 20000)
+            // TODO: Questa è la logica dove dovresti implementare l'invio di messaggi Telegram per utente
+            // Ogni utente potrebbe avere le proprie soglie di notifica.
+            // Per fare questo, avresti bisogno di:
+            // 1. Un meccanismo per ottenere tutti gli UserId che hanno abilitato le notifiche Telegram
+            // 2. Per ogni userId, recuperare le loro impostazioni TelegramKey e BotConfiguration (per le soglie di prezzo)
+            // 3. Valutare se il tickerData corrente soddisfa le condizioni di notifica per quel singolo utente
+            // 4. Chiamare _telegramService.SendMessageAsync(userId, message) solo se le condizioni sono soddisfatte.
+            //
+            // Esempio di come potresti ottenere i servizi scoped (UserManager, DbContext) qui, per riferimento:
+            using (var scope = _scopeFactory.CreateScope()) // Crea un nuovo scope per i servizi scoped
             {
-                var message = $"🚨 **Avviso BTCUSDT:** Il prezzo è sceso a **{tickerData.Price:F2}$**!";
-                await _telegramService.SendMessageAsync(message);
+                 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                 var encryptionService = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+                 var telegramServiceScoped = scope.ServiceProvider.GetRequiredService<ITelegramNotificationService>();
+                 // Esempio: recupera un utente specifico e le sue impostazioni Telegram
+                 // Qui dovrai iterare su tutti gli utenti che hanno notifche Telegram abilitate
+                 var usersWithTelegramNotifications = await dbContext.TelegramKeys
+                    .Where(tk => tk.SendNotifications)
+                    .Select(tk => tk.UserId)
+                    .Distinct()
+                    .ToListAsync();
+
+                 foreach (var userId in usersWithTelegramNotifications)
+                 {
+                     var user = await userManager.FindByIdAsync(userId);
+                     if (user != null) 
+                     {
+                         // Recupera le impostazioni di Telegram per questo utente
+                         var telegramKey = await dbContext.TelegramKeys
+                            .Where(tk => tk.UserId == userId && tk.SendNotifications)
+                            .FirstOrDefaultAsync();
+                        
+                         if (telegramKey != null)
+                         {
+                            // Qui puoi aggiungere la tua logica per le soglie di prezzo, ecc.
+                            // Ad esempio, se tickerData.Symbol è quello che l'utente vuole monitorare
+                            // e il prezzo è sotto una certa soglia configurata per l'utente.
+                            if (tickerData.Symbol == "BTCUSDT" && tickerData.Price < 20000) // Esempio: Sostituisci con logica utente-specifica
+                            {
+                                var message = $"🚨 **Avviso BTCUSDT:** Il prezzo è sceso a **{tickerData.Price:F2}$** per {user.UserName}!";
+                                await telegramServiceScoped.SendMessageAsync(userId, message); // Usa il servizio scoped
+                                _logger.LogInformation($"Inviato avviso Telegram a {user.UserName} per {tickerData.Symbol}");
+                            }
+                         }
+                     }
+                 }
             }
+
+            // Rimuovi l'invio del messaggio hardcoded precedente
+            // if (tickerData.Symbol == "BTCUSDT" && tickerData.Price < 20000)
+            // {
+            //     var message = $"🚨 **Avviso BTCUSDT:** Il prezzo è sceso a **{tickerData.Price:F2}$**!";
+            //     await _telegramService.SendMessageAsync(message);
+            // }
         };
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Binance Stream Hosted Service avviato.");
-        await _telegramService.SendMessageAsync("**TEST:** L'applicazione Binance Data Cache è stata avviata con successo!");
+        // Rimuovi l'invio del messaggio di test all'avvio
+        // await _telegramService.SendMessageAsync("**TEST:** L'applicazione Binance Data Cache è stata avviata con successo!");
         // Gli stream Binance non vengono più avviati globalmente all'avvio dell'applicazione.
         // Vengono avviati per utente tramite TickerHub quando l'utente sottoscrive un ticker.
         // Rimuovi le chiamate a StartTickerStreamAsync e StartKlineStreamAsync qui.

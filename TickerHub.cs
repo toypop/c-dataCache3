@@ -77,6 +77,134 @@ namespace BinanceDataCacheApp
             }
         }
 
+        private async Task<TelegramKey> GetTelegramKeyAsync(User user)
+        {
+            if (user == null) return null;
+
+            var telegramKey = await _dbContext.TelegramKeys
+                .Where(tk => tk.UserId == user.Id)
+                .FirstOrDefaultAsync();
+
+            if (telegramKey == null) return null;
+
+            try
+            {
+                // Decrittografa i valori solo quando vengono recuperati
+                telegramKey.BotToken = _encryptionService.Decrypt(telegramKey.BotToken);
+                telegramKey.ChatId = _encryptionService.Decrypt(telegramKey.ChatId);
+                return telegramKey;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Errore durante la decrittografia delle chiavi Telegram per l'utente {user.UserName}.");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Salva le impostazioni delle chiavi Telegram per l'utente corrente nel database.
+        /// </summary>
+        /// <param name="botToken">Il Bot Token di Telegram.</param>
+        /// <param name="chatId">La Chat ID di Telegram.</param>
+        /// <param name="sendNotifications">Flag per abilitare/disabilitare le notifiche.</param>
+        /// <returns>True se le impostazioni sono state salvate con successo, altrimenti False.</returns>
+        public async Task<bool> SaveTelegramSettings(string botToken, string chatId, bool sendNotifications)
+        {
+            var user = await GetCurrentUserAsync();
+            if (user == null) return false;
+
+            // Cerca se esiste già una TelegramKey per questo utente
+            var existingKey = await _dbContext.TelegramKeys
+                .Where(tk => tk.UserId == user.Id)
+                .FirstOrDefaultAsync();
+
+            try
+            {
+                // Crittografa i valori prima di salvare
+                var encryptedBotToken = _encryptionService.Encrypt(botToken);
+                var encryptedChatId = _encryptionService.Encrypt(chatId);
+
+                if (existingKey == null)
+                {
+                    // Crea una nuova entry se non esiste
+                    var newTelegramKey = new TelegramKey
+                    {
+                        UserId = user.Id,
+                        BotToken = encryptedBotToken,
+                        ChatId = encryptedChatId,
+                        SendNotifications = sendNotifications,
+                        CreatedAt = DateTime.UtcNow,
+                        LastUsedAt = DateTime.UtcNow
+                    };
+                    _dbContext.TelegramKeys.Add(newTelegramKey);
+                }
+                else
+                {
+                    // Aggiorna l'entry esistente
+                    existingKey.BotToken = encryptedBotToken;
+                    existingKey.ChatId = encryptedChatId;
+                    existingKey.SendNotifications = sendNotifications;
+                    existingKey.LastUsedAt = DateTime.UtcNow;
+                    _dbContext.TelegramKeys.Update(existingKey);
+                }
+
+                await _dbContext.SaveChangesAsync();
+                _logger.LogInformation($"Impostazioni Telegram salvate per l'utente {user.UserName}. Notifiche abilitate: {sendNotifications}.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Errore durante il salvataggio delle impostazioni Telegram per l'utente {user.UserName}.");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Verifica se l'utente corrente ha delle chiavi Telegram configurate e se l'invio di notifiche è abilitato.
+        /// </summary>
+        /// <returns>True se le chiavi Telegram sono configurate e le notifiche sono abilitate, altrimenti False.</returns>
+        public async Task<bool> HasTelegramKeysConfiguredAndNotificationsEnabled()
+        {
+            var user = await GetCurrentUserAsync();
+            if (user == null) return false;
+
+            var telegramKey = await _dbContext.TelegramKeys
+                .Where(tk => tk.UserId == user.Id)
+                .FirstOrDefaultAsync();
+
+            return telegramKey != null && telegramKey.SendNotifications;
+        }
+
+        /// <summary>
+        /// Recupera le impostazioni Telegram (Bot Token, Chat ID, SendNotifications) per l'utente corrente.
+        /// </summary>
+        /// <returns>Un oggetto contenente BotToken, ChatId e SendNotifications, o null se non configurato.</returns>
+        public async Task<object> GetTelegramSettings()
+        {
+            var user = await GetCurrentUserAsync();
+            if (user == null) return null;
+
+            var telegramKey = await _dbContext.TelegramKeys
+                .Where(tk => tk.UserId == user.Id)
+                .FirstOrDefaultAsync();
+
+            if (telegramKey == null) return null;
+
+            try
+            {
+                // Decrittografa i valori prima di inviarli al client
+                var decryptedBotToken = _encryptionService.Decrypt(telegramKey.BotToken);
+                var decryptedChatId = _encryptionService.Decrypt(telegramKey.ChatId);
+
+                return new { BotToken = decryptedBotToken, ChatId = decryptedChatId, SendNotifications = telegramKey.SendNotifications };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Errore durante il recupero e la decrittografia delle impostazioni Telegram per l'utente {user.UserName}.");
+                return null;
+            }
+        }
+
         /// <summary>
         /// Salva le chiavi API e Secret Key di Binance per l'utente corrente nel database.
         /// Disattiva tutte le altre chiavi per lo stesso utente.

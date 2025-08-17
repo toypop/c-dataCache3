@@ -521,6 +521,10 @@
                             <label for="telegramBotTokenInput" class="form-label text-white">Bot Token:</label>
                             <input type="password" id="telegramBotTokenInput" class="form-control" placeholder="Inserisci il Bot Token di Telegram">
                         </div>
+                        <div class="mb-3 form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="sendNotificationsToggle">
+                            <label class="form-check-label text-white" for="sendNotificationsToggle">Invia Notifiche Telegram</label>
+                        </div>
                         <div class="d-grid gap-2">
                             <button id="saveTelegramSettingsButton" class="btn btn-custom">
                                 <i class="fas fa-save me-2"></i>Salva Impostazioni Telegram
@@ -697,6 +701,13 @@
         const binanceKeyDescriptionInput = document.getElementById('binanceKeyDescriptionInput');
         const saveApiKeysButton = document.getElementById('saveApiKeysButton');
         const apiKeyStatusMessage = document.getElementById('apiKeyStatusMessage');
+
+        // Nuovi elementi DOM per la gestione delle impostazioni Telegram
+        const telegramChatIdInput = document.getElementById('telegramChatIdInput');
+        const telegramBotTokenInput = document.getElementById('telegramBotTokenInput');
+        const sendNotificationsToggle = document.getElementById('sendNotificationsToggle');
+        const saveTelegramSettingsButton = document.getElementById('saveTelegramSettingsButton');
+        const telegramStatusMessage = document.getElementById('telegramStatusMessage');
 
         // Elementi DOM per i controlli del ticker (da abilitare/disabilitare)
         const cryptoSelect = document.getElementById('cryptoSelect');
@@ -957,23 +968,53 @@
         // --- LISTENER EVENTI UTENTE ---
         // ====================================================================
 
-        // Mobile sidebar toggle
-        document.getElementById('sidebarToggle').addEventListener('click', function() {
-            document.getElementById('sidebar').classList.toggle('show');
-        });
+        // Gestione salvataggio Impostazioni Telegram
+        saveTelegramSettingsButton.addEventListener('click', async () => {
+            const botToken = telegramBotTokenInput.value.trim();
+            const chatId = telegramChatIdInput.value.trim();
+            const sendNotifications = sendNotificationsToggle.checked;
 
-        // Close sidebar when clicking outside on mobile
-        document.addEventListener('click', function(event) {
-            const sidebar = document.getElementById('sidebar');
-            const toggle = document.getElementById('sidebarToggle');
-            
-            if (window.innerWidth <= 768 && 
-                !sidebar.contains(event.target) && 
-                !toggle.contains(event.target) && 
-                sidebar.classList.contains('show')) {
-                sidebar.classList.remove('show');
+            if (!botToken || !chatId) {
+                showSubscriptionMessage("Bot Token e Chat ID non possono essere vuoti.", 'error');
+                return;
+            }
+
+            try {
+                const success = await connection.invoke("SaveTelegramSettings", botToken, chatId, sendNotifications);
+                if (success) {
+                    showSubscriptionMessage("Impostazioni Telegram salvate con successo!", 'success');
+                    // Non pulire i campi per permettere all'utente di modificarli facilmente
+                    // telegramBotTokenInput.value = ''; 
+                    // telegramChatIdInput.value = '';
+                    // Non ricaricare la pagina per un feedback più immediato
+                    // location.reload();
+                    await loadTelegramSettings(); // Aggiorna UI con i dati salvati
+                } else {
+                    showSubscriptionMessage("Errore durante il salvataggio delle impostazioni Telegram.", 'error');
+                }
+            } catch (err) {
+                console.error("Errore SignalR durante il salvataggio delle impostazioni Telegram:", err);
+                showSubscriptionMessage("Errore di comunicazione con il server durante il salvataggio delle impostazioni Telegram.", 'error');
             }
         });
+
+        // Funzione per caricare le impostazioni Telegram
+        async function loadTelegramSettings() {
+            try {
+                const settings = await connection.invoke("GetTelegramSettings");
+                if (settings) {
+                    telegramBotTokenInput.value = settings.botToken || '';
+                    telegramChatIdInput.value = settings.chatId || '';
+                    sendNotificationsToggle.checked = settings.sendNotifications;
+                    telegramStatusMessage.innerHTML = '<i class="fas fa-check-circle text-success me-1"></i> Impostazioni Telegram caricate.';
+                } else {
+                    telegramStatusMessage.innerHTML = '<i class="fas fa-exclamation-triangle text-warning me-1"></i> Nessuna impostazione Telegram trovata.';
+                }
+            } catch (err) {
+                console.error("Errore durante il caricamento delle impostazioni Telegram:", err);
+                telegramStatusMessage.innerHTML = '<i class="fas fa-times-circle text-danger me-1"></i> Errore caricamento impostazioni Telegram.';
+            }
+        }
 
         // Gestione salvataggio API Keys
         saveApiKeysButton.addEventListener('click', async () => {
@@ -1001,24 +1042,6 @@
             } catch (err) {
                 console.error("Errore SignalR durante il salvataggio delle chiavi API:", err);
                 showSubscriptionMessage("Errore di comunicazione con il server durante il salvataggio delle chiavi.", 'error');
-            }
-        });
-
-        // Mobile sidebar toggle
-        document.getElementById('sidebarToggle').addEventListener('click', function() {
-            document.getElementById('sidebar').classList.toggle('show');
-        });
-
-        // Close sidebar when clicking outside on mobile
-        document.addEventListener('click', function(event) {
-            const sidebar = document.getElementById('sidebar');
-            const toggle = document.getElementById('sidebarToggle');
-            
-            if (window.innerWidth <= 768 && 
-                !sidebar.contains(event.target) && 
-                !toggle.contains(event.target) && 
-                sidebar.classList.contains('show')) {
-                sidebar.classList.remove('show');
             }
         });
 
@@ -1264,6 +1287,7 @@
                 
                 // Controlla le chiavi API e abilita/disabilita i controlli di conseguenza
                 await checkApiKeysAndToggleControls();
+                await loadTelegramSettings(); // Carica le impostazioni Telegram all'avvio
 
                 // Sottoscrivi ai ticker salvati SOLO SE le chiavi sono configurate
                 const hasKeys = await connection.invoke("HasBinanceApiKeysConfigured");

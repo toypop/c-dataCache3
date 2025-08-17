@@ -13,5 +13,6 @@ namespace BinanceDataCacheApp.Models
         // Navigation properties
         public ICollection<BinanceApiKey> ApiKeys { get; set; }
         public ICollection<BotConfiguration> BotConfigurations { get; set; }
+        public ICollection<TelegramKey> TelegramKeys { get; set; } // Aggiunto per Telegram Keys
     }
 }

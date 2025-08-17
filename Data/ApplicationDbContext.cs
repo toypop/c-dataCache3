@@ -14,6 +14,7 @@ namespace BinanceDataCacheApp.Data
         // DbSet<User> non è più necessario qui, è gestito da IdentityDbContext
         public DbSet<BinanceApiKey> ApiKeys { get; set; } = default!; // Aggiunto = default!
         public DbSet<BotConfiguration> BotConfigurations { get; set; } = default!; // Aggiunto = default!
+        public DbSet<TelegramKey> TelegramKeys { get; set; } = default!; // Aggiunto per Telegram Keys
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -29,6 +30,11 @@ namespace BinanceDataCacheApp.Data
                 .HasOne(bc => bc.User)
                 .WithMany(u => u.BotConfigurations)
                 .HasForeignKey(bc => bc.UserId);
+
+            modelBuilder.Entity<TelegramKey>()
+                .HasOne(tk => tk.User)
+                .WithMany(u => u.TelegramKeys)
+                .HasForeignKey(tk => tk.UserId);
         }
     }
 }
