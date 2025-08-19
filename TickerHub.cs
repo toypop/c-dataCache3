@@ -22,6 +22,7 @@ namespace BinanceDataCacheApp
         private readonly UserManager<User> _userManager; // Per ottenere l'utente corrente
         private readonly ApplicationDbContext _dbContext; // Per interagire con il DB
         private readonly IEncryptionService _encryptionService; // Per crittografare/decrittografare
+        private readonly ITelegramNotificationService _telegramNotificationService; // Inietta il servizio di notifica Telegram
 
         public TickerHub(
             BinanceStreamManager streamManager,
@@ -29,7 +30,8 @@ namespace BinanceDataCacheApp
             BinanceDataCache cache,
             UserManager<User> userManager,
             ApplicationDbContext dbContext,
-            IEncryptionService encryptionService)
+            IEncryptionService encryptionService,
+            ITelegramNotificationService telegramNotificationService) // Aggiungi al costruttore
         {
             _streamManager = streamManager;
             _logger = logger;
@@ -37,6 +39,7 @@ namespace BinanceDataCacheApp
             _userManager = userManager;
             _dbContext = dbContext;
             _encryptionService = encryptionService;
+            _telegramNotificationService = telegramNotificationService; // Inizializza
         }
 
         private async Task<User> GetCurrentUserAsync()
@@ -150,6 +153,23 @@ namespace BinanceDataCacheApp
 
                 await _dbContext.SaveChangesAsync();
                 _logger.LogInformation($"Impostazioni Telegram salvate per l'utente {user.UserName}. Notifiche abilitate: {sendNotifications}.");
+
+                // Invia un messaggio di benvenuto se le notifiche sono abilitate
+                if (sendNotifications)
+                {
+                    // Usa il servizio di notifica Telegram iniettato direttamente
+                    if (_telegramNotificationService != null)
+                    {
+                        var decryptedChatId = _encryptionService.Decrypt(encryptedChatId);
+                        var welcomeMessage = $"Benvenuto {user.UserName}! Le tue impostazioni Telegram sono state salvate e le notifiche sono abilitate. Riceverai aggiornamenti qui.";
+                        await _telegramNotificationService.SendMessageAsync(user.Id, welcomeMessage);
+                        _logger.LogInformation($"Messaggio di benvenuto Telegram inviato a {user.UserName} (Chat ID: {decryptedChatId}).");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("ITelegramNotificationService non disponibile per l'invio del messaggio di benvenuto.");
+                    }
+                }
                 return true;
             }
             catch (Exception ex)
