@@ -15,6 +15,7 @@ namespace BinanceDataCacheApp.Data
         public DbSet<BinanceApiKey> ApiKeys { get; set; } = default!; // Aggiunto = default!
         public DbSet<BotConfiguration> BotConfigurations { get; set; } = default!; // Aggiunto = default!
         public DbSet<TelegramKey> TelegramKeys { get; set; } = default!; // Aggiunto per Telegram Keys
+        public DbSet<UserSubscribedTicker> UserSubscribedTickers { get; set; } = default!; // Aggiunto per i ticker sottoscritti dagli utenti
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -35,6 +36,11 @@ namespace BinanceDataCacheApp.Data
                 .HasOne(tk => tk.User)
                 .WithMany(u => u.TelegramKeys)
                 .HasForeignKey(tk => tk.UserId);
+
+            modelBuilder.Entity<UserSubscribedTicker>()
+                .HasOne(ust => ust.User)
+                .WithMany(u => u.UserSubscribedTickers)
+                .HasForeignKey(ust => ust.UserId);
         }
     }
 }

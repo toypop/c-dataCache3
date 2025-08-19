@@ -298,6 +298,10 @@ namespace BinanceDataCacheApp
         }
 
         // Metodo chiamato dal client per sottoscrivere un ticker
+        /// <summary>
+        /// Sottoscrive l'utente corrente a un ticker specifico, salvando la sottoscrizione nel DB
+        /// e aggiungendo il client al gruppo SignalR del simbolo.
+        /// </summary>
         public async Task SubscribeToTicker(string symbol)
         {
             var user = await GetCurrentUserAsync();
@@ -307,35 +311,73 @@ namespace BinanceDataCacheApp
             if (credentials == null)
             {
                 _logger.LogWarning($"Impossibile sottoscrivere {symbol}: Chiavi API Binance non configurate o non valide per l'utente {user.UserName}.");
-                // Potresti inviare un messaggio al client qui per informarlo
                 await Clients.Caller.SendAsync("ShowNotification", "Errore: Chiavi API Binance non configurate o non valide.", "error");
                 return;
             }
 
-            _logger.LogInformation($"Client sottoscritto a: {symbol} per utente {user.UserName}");
-            bool tickerSubscribed = await _streamManager.StartTickerStreamAsync(symbol, credentials);
+            // Verifica se l'utente è già sottoscritto a questo ticker nel DB
+            var existingSubscription = await _dbContext.UserSubscribedTickers
+                .AnyAsync(ust => ust.UserId == user.Id && ust.Symbol == symbol);
 
-            if (tickerSubscribed)
+            if (existingSubscription)
             {
-                var shortTermIntervals = new List<KlineInterval> { KlineInterval.OneMinute, KlineInterval.FiveMinutes, KlineInterval.FifteenMinutes };
-                var longTermIntervals = new List<KlineInterval> { KlineInterval.OneHour, KlineInterval.FourHour, KlineInterval.OneDay };
+                _logger.LogInformation($"Utente {user.UserName} è già sottoscritto a {symbol}.");
+                await Clients.Caller.SendAsync("ShowNotification", $"Sei già sottoscritto a {symbol}.", "info");
+                // Aggiungi comunque al gruppo SignalR per sicurezza se la connessione è nuova
+                await Groups.AddToGroupAsync(Context.ConnectionId, symbol);
+                return;
+            }
 
-                bool klinesStarted = await _streamManager.StartKlineStreamsForSymbolAsync(symbol, shortTermIntervals, longTermIntervals, credentials);
-
-                if (klinesStarted)
+            try
+            {
+                // Salva la sottoscrizione nel database
+                var newSubscription = new UserSubscribedTicker
                 {
-                    _logger.LogInformation($"Stream Kline avviati con successo per {symbol} per utente {user.UserName}.");
+                    UserId = user.Id,
+                    Symbol = symbol,
+                    SubscribedAt = DateTime.UtcNow
+                };
+                _dbContext.UserSubscribedTickers.Add(newSubscription);
+                await _dbContext.SaveChangesAsync();
+
+                // Avvia lo stream Binance se non è già attivo per questo simbolo (gestito dal manager)
+                bool tickerSubscribed = await _streamManager.StartTickerStreamAsync(symbol, credentials);
+
+                if (tickerSubscribed)
+                {
+                    // Aggiungi il client al gruppo SignalR per questo simbolo
+                    await Groups.AddToGroupAsync(Context.ConnectionId, symbol);
+                    _logger.LogInformation($"Client {Context.ConnectionId} aggiunto al gruppo {symbol}.");
+
+                    var shortTermIntervals = new List<KlineInterval> { KlineInterval.OneMinute, KlineInterval.FiveMinutes, KlineInterval.FifteenMinutes };
+                    var longTermIntervals = new List<KlineInterval> { KlineInterval.OneHour, KlineInterval.FourHour, KlineInterval.OneDay };
+
+                    bool klinesStarted = await _streamManager.StartKlineStreamsForSymbolAsync(symbol, shortTermIntervals, longTermIntervals, credentials);
+
+                    if (klinesStarted)
+                    {
+                        _logger.LogInformation($"Stream Kline avviati con successo per {symbol} per utente {user.UserName}.");
+                    }
+                    else
+                    {
+                        _logger.LogError($"Errore nell'avvio degli stream Kline per {symbol} per utente {user.UserName}.");
+                        await Clients.Caller.SendAsync("ShowNotification", $"Errore nell'avvio degli stream Kline per {symbol}.", "error");
+                    }
+                    await Clients.Caller.SendAsync("ShowNotification", $"Sottoscritto a {symbol} con successo!", "success");
                 }
                 else
                 {
-                    _logger.LogError($"Errore nell'avvio degli stream Kline per {symbol} per utente {user.UserName}.");
-                    await Clients.Caller.SendAsync("ShowNotification", $"Errore nell'avvio degli stream Kline per {symbol}.", "error");
+                    _logger.LogWarning($"Sottoscrizione ticker per {symbol} non riuscita per utente {user.UserName}.");
+                    await Clients.Caller.SendAsync("ShowNotification", $"Sottoscrizione ticker per {symbol} non riuscita.", "error");
+                    // Rimuovi la sottoscrizione dal DB se l'avvio dello stream fallisce
+                    _dbContext.UserSubscribedTickers.Remove(newSubscription);
+                    await _dbContext.SaveChangesAsync();
                 }
             }
-            else
+            catch (Exception ex)
             {
-                _logger.LogWarning($"Sottoscrizione ticker per {symbol} non riuscita o già esistente per utente {user.UserName}.");
-                await Clients.Caller.SendAsync("ShowNotification", $"Sottoscrizione ticker per {symbol} non riuscita o già esistente.", "warning");
+                _logger.LogError(ex, $"Eccezione durante la sottoscrizione a {symbol} per l'utente {user.UserName}.");
+                await Clients.Caller.SendAsync("ShowNotification", $"Errore interno durante la sottoscrizione a {symbol}.", "error");
             }
         }
 
@@ -346,7 +388,61 @@ namespace BinanceDataCacheApp
             if (user == null) return;
 
             _logger.LogInformation($"Client disiscritto da: {symbol} per utente {user.UserName}");
-            await _streamManager.StopTickerStreamAsync(symbol); // StopTickerStreamAsync ferma tutti gli stream associati a quel simbolo
+            // Rimuovi la sottoscrizione dal database
+            var subscriptionToRemove = await _dbContext.UserSubscribedTickers
+                .FirstOrDefaultAsync(ust => ust.UserId == user.Id && ust.Symbol == symbol);
+
+            if (subscriptionToRemove != null)
+            {
+                _dbContext.UserSubscribedTickers.Remove(subscriptionToRemove);
+                await _dbContext.SaveChangesAsync();
+                _logger.LogInformation($"Sottoscrizione a {symbol} rimossa dal DB per utente {user.UserName}.");
+            }
+
+            // Rimuovi il client dal gruppo SignalR per questo simbolo
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, symbol);
+            _logger.LogInformation($"Client {Context.ConnectionId} rimosso dal gruppo {symbol}.");
+
+            // Controlla se ci sono ancora utenti sottoscritti a questo simbolo.
+            // Se nessun utente è più sottoscritto, ferma lo stream Binance.
+            var remainingSubscribers = await _dbContext.UserSubscribedTickers
+                .AnyAsync(ust => ust.Symbol == symbol);
+
+            if (!remainingSubscribers)
+            {
+                await _streamManager.StopTickerStreamAsync(symbol); // Ferma lo stream Binance solo se nessun utente è sottoscritto
+                _logger.LogInformation($"Stream Binance per {symbol} fermato in quanto nessun utente è più sottoscritto.");
+            }
+            else
+            {
+                _logger.LogInformation($"Stream Binance per {symbol} mantenuto attivo, ci sono ancora sottoscrittori.");
+            }
+
+            // Invia la lista aggiornata dei ticker sottoscritti al client
+            await GetUserSubscribedTickers();
+            await Clients.Caller.SendAsync("ShowNotification", $"Disiscritto da {symbol} con successo!", "success");
+        }
+
+        /// <summary>
+        /// Recupera la lista dei ticker a cui l'utente corrente è sottoscritto dal database
+        /// e la invia al client SignalR.
+        /// </summary>
+        public async Task GetUserSubscribedTickers()
+        {
+            var user = await GetCurrentUserAsync();
+            if (user == null)
+            {
+                await Clients.Caller.SendAsync("ReceiveSubscribedTickers", new List<string>());
+                return;
+            }
+
+            var subscribedSymbols = await _dbContext.UserSubscribedTickers
+                .Where(ust => ust.UserId == user.Id)
+                .Select(ust => ust.Symbol)
+                .ToListAsync();
+
+            _logger.LogInformation($"Invio ticker sottoscritti a {user.UserName}: {string.Join(", ", subscribedSymbols)}");
+            await Clients.Caller.SendAsync("ReceiveSubscribedTickers", subscribedSymbols);
         }
 
         // Nuovo metodo per ottenere i dati Kline per un simbolo e intervallo specifici
