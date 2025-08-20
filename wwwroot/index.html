@@ -477,33 +477,6 @@
                 </div>
             </div>
 
-            <!-- Ticker Controls Section -->
-            <div class="accordion-item control-section">
-                <h2 class="accordion-header" id="headingTickerControl">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTickerControl" aria-expanded="false" aria-controls="collapseTickerControl">
-                        <i class="fas fa-coins me-2"></i> Ticker Control
-                    </button>
-                </h2>
-                <div id="collapseTickerControl" class="accordion-collapse collapse" aria-labelledby="headingTickerControl" data-bs-parent="#sidebarAccordion">
-                    <div class="accordion-body">
-                        <div class="mb-3">
-                            <label for="cryptoSelect" class="form-label text-white">Seleziona Ticker:</label>
-                            <select id="cryptoSelect" class="form-select" disabled>
-                                <!-- Opzioni ticker saranno popolate da JS -->
-                            </select>
-                        </div>
-                        <div class="d-grid gap-2">
-                            <button id="subscribeButton" class="btn btn-custom" disabled>
-                                <i class="fas fa-plus me-2"></i>Sottoscrivi
-                            </button>
-                            <button id="unsubscribeButton" class="btn btn-outline-custom" disabled>
-                                <i class="fas fa-minus me-2"></i>Disiscriviti
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- NUOVA SEZIONE: Telegram Settings -->
             <div class="accordion-item control-section">
                 <h2 class="accordion-header" id="headingTelegramSettings">
@@ -536,6 +509,35 @@
                     </div>
                 </div>
             </div>
+
+
+            <!-- Ticker Controls Section -->
+            <div class="accordion-item control-section">
+                <h2 class="accordion-header" id="headingTickerControl">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTickerControl" aria-expanded="false" aria-controls="collapseTickerControl">
+                        <i class="fas fa-coins me-2"></i> Ticker Control
+                    </button>
+                </h2>
+                <div id="collapseTickerControl" class="accordion-collapse collapse" aria-labelledby="headingTickerControl" data-bs-parent="#sidebarAccordion">
+                    <div class="accordion-body">
+                        <div class="mb-3">
+                            <label for="cryptoSelect" class="form-label text-white">Seleziona Ticker:</label>
+                            <select id="cryptoSelect" class="form-select" disabled>
+                                <!-- Opzioni ticker saranno popolate da JS -->
+                            </select>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button id="subscribeButton" class="btn btn-custom" disabled>
+                                <i class="fas fa-plus me-2"></i>Sottoscrivi
+                            </button>
+                            <button id="unsubscribeButton" class="btn btn-outline-custom" disabled>
+                                <i class="fas fa-minus me-2"></i>Disiscriviti
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     
         <!-- Connection Status -->
