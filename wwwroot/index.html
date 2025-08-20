@@ -1044,6 +1044,7 @@
                     // Non aggiungere qui, aspetta la conferma dal server
                     console.log(`Richiesta sottoscrizione a ${symbol}`);
                     // showSubscriptionMessage(`Sottoscrizione a ${symbol} in corso...`, 'info'); // Messaggio temporaneo
+                    location.reload(); // Ricarica la pagina dopo la sottoscrizione
                 } catch (err) {
                     console.error(`Errore durante la sottoscrizione a ${symbol}:`, err);
                     showSubscriptionMessage(`Errore durante la sottoscrizione a ${symbol}.`, 'error');
