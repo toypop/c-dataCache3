@@ -321,7 +321,7 @@ namespace BinanceDataCacheApp
 
             if (existingSubscription)
             {
-                _logger.LogInformation($"Utente {user.UserName} è già sottoscritto a {symbol}.");
+                _logger.LogInformation($"[TickerHub] Utente {user.UserName} è già sottoscritto a {symbol}.");
                 await Clients.Caller.SendAsync("ShowNotification", $"Sei già sottoscritto a {symbol}.", "info");
                 // Aggiungi comunque al gruppo SignalR per sicurezza se la connessione è nuova
                 await Groups.AddToGroupAsync(Context.ConnectionId, symbol);
@@ -339,44 +339,49 @@ namespace BinanceDataCacheApp
                 };
                 _dbContext.UserSubscribedTickers.Add(newSubscription);
                 await _dbContext.SaveChangesAsync();
+                _logger.LogInformation($"[TickerHub] Sottoscrizione DB salvata per {symbol} per utente {user.UserName}.");
 
                 // Avvia lo stream Binance se non è già attivo per questo simbolo (gestito dal manager)
+                _logger.LogInformation($"[TickerHub] Tentativo di avviare ticker stream per {symbol} con BinanceStreamManager.");
                 bool tickerSubscribed = await _streamManager.StartTickerStreamAsync(symbol, credentials);
 
                 if (tickerSubscribed)
                 {
+                    _logger.LogInformation($"[TickerHub] Ticker stream avviato con successo per {symbol} (Manager response: {tickerSubscribed}).");
                     // Aggiungi il client al gruppo SignalR per questo simbolo
                     await Groups.AddToGroupAsync(Context.ConnectionId, symbol);
-                    _logger.LogInformation($"Client {Context.ConnectionId} aggiunto al gruppo {symbol}.");
+                    _logger.LogInformation($"[TickerHub] Client {Context.ConnectionId} aggiunto al gruppo {symbol}.");
 
                     var shortTermIntervals = new List<KlineInterval> { KlineInterval.OneMinute, KlineInterval.FiveMinutes, KlineInterval.FifteenMinutes };
                     var longTermIntervals = new List<KlineInterval> { KlineInterval.OneHour, KlineInterval.FourHour, KlineInterval.OneDay };
 
+                    _logger.LogInformation($"[TickerHub] Tentativo di avviare kline streams per {symbol} con BinanceStreamManager.");
                     bool klinesStarted = await _streamManager.StartKlineStreamsForSymbolAsync(symbol, shortTermIntervals, longTermIntervals, credentials);
 
                     if (klinesStarted)
                     {
-                        _logger.LogInformation($"Stream Kline avviati con successo per {symbol} per utente {user.UserName}.");
+                        _logger.LogInformation($"[TickerHub] Stream Kline avviati con successo per {symbol} per utente {user.UserName}.");
                     }
                     else
                     {
-                        _logger.LogError($"Errore nell'avvio degli stream Kline per {symbol} per utente {user.UserName}.");
+                        _logger.LogError($"[TickerHub] Errore nell'avvio degli stream Kline per {symbol} per utente {user.UserName}.");
                         await Clients.Caller.SendAsync("ShowNotification", $"Errore nell'avvio degli stream Kline per {symbol}.", "error");
                     }
                     await Clients.Caller.SendAsync("ShowNotification", $"Sottoscritto a {symbol} con successo!", "success");
                 }
                 else
                 {
-                    _logger.LogWarning($"Sottoscrizione ticker per {symbol} non riuscita per utente {user.UserName}.");
+                    _logger.LogWarning($"[TickerHub] Sottoscrizione ticker per {symbol} non riuscita per utente {user.UserName} (Manager response: {tickerSubscribed}).");
                     await Clients.Caller.SendAsync("ShowNotification", $"Sottoscrizione ticker per {symbol} non riuscita.", "error");
                     // Rimuovi la sottoscrizione dal DB se l'avvio dello stream fallisce
                     _dbContext.UserSubscribedTickers.Remove(newSubscription);
                     await _dbContext.SaveChangesAsync();
+                    _logger.LogInformation($"[TickerHub] Sottoscrizione DB rimossa per {symbol} a causa del fallimento dello stream.");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Eccezione durante la sottoscrizione a {symbol} per l'utente {user.UserName}.");
+                _logger.LogError(ex, $"[TickerHub] Eccezione durante la sottoscrizione a {symbol} per l'utente {user.UserName}.");
                 await Clients.Caller.SendAsync("ShowNotification", $"Errore interno durante la sottoscrizione a {symbol}.", "error");
             }
         }
@@ -436,13 +441,24 @@ namespace BinanceDataCacheApp
                 return;
             }
 
-            var subscribedSymbols = await _dbContext.UserSubscribedTickers
+            var subscribedTickers = await _dbContext.UserSubscribedTickers
                 .Where(ust => ust.UserId == user.Id)
-                .Select(ust => ust.Symbol)
+                .Select(ust => new { ust.Symbol }) // Seleziona solo il simbolo inizialmente
                 .ToListAsync();
 
-            _logger.LogInformation($"Invio ticker sottoscritti a {user.UserName}: {string.Join(", ", subscribedSymbols)}");
-            await Clients.Caller.SendAsync("ReceiveSubscribedTickers", subscribedSymbols);
+            var tickersWithPrices = new List<object>();
+            foreach (var subscribedTicker in subscribedTickers)
+            {
+                var tickerData = _cache.GetTickerData(subscribedTicker.Symbol);
+                tickersWithPrices.Add(new
+                {
+                    Symbol = subscribedTicker.Symbol,
+                    Price = tickerData?.Price ?? 0m // Invia il prezzo dalla cache, 0 se non disponibile
+                });
+            }
+
+            _logger.LogInformation($"Invio ticker sottoscritti a {user.UserName}: {string.Join(", ", tickersWithPrices.Select(t => ((dynamic)t).Symbol))}");
+            await Clients.Caller.SendAsync("ReceiveSubscribedTickers", tickersWithPrices);
         }
 
         // Nuovo metodo per ottenere i dati Kline per un simbolo e intervallo specifici
@@ -492,6 +508,76 @@ namespace BinanceDataCacheApp
         public static async Task SendTickerUpdate(TickerData tickerData)
         {
             await Task.CompletedTask; // Placeholder
+        }
+
+        public override async Task OnConnectedAsync()
+        {
+            var user = await GetCurrentUserAsync();
+            if (user != null)
+            {
+                var credentials = await GetUserBinanceApiCredentialsAsync(user);
+                if (credentials == null)
+                {
+                    _logger.LogWarning($"[TickerHub] Utente {user.UserName} connesso ma senza chiavi API Binance attive. Impossibile avviare stream per ticker sottoscritti.");
+                    await Clients.Caller.SendAsync("ShowNotification", "Attenzione: Chiavi API Binance non configurate o non valide. Alcune funzionalità potrebbero non essere disponibili.", "warning");
+                }
+
+                var subscribedTickers = await _dbContext.UserSubscribedTickers
+                    .Where(ust => ust.UserId == user.Id)
+                    .Select(ust => ust.Symbol)
+                    .ToListAsync();
+
+                _logger.LogInformation($"[TickerHub] Utente {user.UserName} connesso. Ticker sottoscritti nel DB: {string.Join(", ", subscribedTickers)}");
+
+                foreach (var symbol in subscribedTickers)
+                {
+                    await Groups.AddToGroupAsync(Context.ConnectionId, symbol);
+                    _logger.LogInformation($"[TickerHub] Client {Context.ConnectionId} (User: {user.UserName}) aggiunto al gruppo SignalR per {symbol} alla connessione.");
+
+                    if (credentials != null)
+                    {
+                        // Avvia lo stream Binance per i ticker già sottoscritti se non sono già attivi
+                        _logger.LogInformation($"[TickerHub] Tentativo di avviare stream per ticker sottoscritto {symbol} all'avvio della connessione.");
+                        bool tickerSubscribed = await _streamManager.StartTickerStreamAsync(symbol, credentials);
+                        if (tickerSubscribed)
+                        {
+                            _logger.LogInformation($"[TickerHub] Ticker stream avviato/già attivo per {symbol} all'avvio della connessione.");
+                            var shortTermIntervals = new List<KlineInterval> { KlineInterval.OneMinute, KlineInterval.FiveMinutes, KlineInterval.FifteenMinutes };
+                            var longTermIntervals = new List<KlineInterval> { KlineInterval.OneHour, KlineInterval.FourHour, KlineInterval.OneDay };
+                            await _streamManager.StartKlineStreamsForSymbolAsync(symbol, shortTermIntervals, longTermIntervals, credentials);
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"[TickerHub] Fallito l'avvio del ticker stream per {symbol} all'avvio della connessione.");
+                        }
+                    }
+                }
+                // Invia la lista dei ticker sottoscritti al client appena connesso
+                await GetUserSubscribedTickers();
+            }
+            await base.OnConnectedAsync();
+        }
+
+        public override async Task OnDisconnectedAsync(Exception exception)
+        {
+            var user = await GetCurrentUserAsync();
+            if (user != null)
+            {
+                // Rimuovi il client da tutti i gruppi a cui era precedentemente aggiunto
+                // Non è strettamente necessario rimuovere esplicitamente, SignalR lo fa automaticamente,
+                // ma è buona pratica per chiarezza o se si gestiscono gruppi complessi.
+                var subscribedSymbols = await _dbContext.UserSubscribedTickers
+                    .Where(ust => ust.UserId == user.Id)
+                    .Select(ust => ust.Symbol)
+                    .ToListAsync();
+
+                foreach (var symbol in subscribedSymbols)
+                {
+                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, symbol);
+                    _logger.LogInformation($"Client {Context.ConnectionId} (User: {user.UserName}) rimosso dal gruppo {symbol} alla disconnessione.");
+                }
+            }
+            await base.OnDisconnectedAsync(exception);
         }
     }
 }

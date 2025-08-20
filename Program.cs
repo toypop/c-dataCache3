@@ -158,8 +158,10 @@ public class BinanceStreamHostedService : IHostedService
 
         _cache.OnTickerUpdated += async (tickerData) =>
         {
+            _logger.LogInformation($"[BinanceStreamHostedService] Ricevuto aggiornamento ticker per {tickerData.Symbol}. Prezzo: {tickerData.Price:F2}");
             // Invia l'aggiornamento ai client SignalR che sono nel gruppo del simbolo specifico
             await _hubContext.Clients.Group(tickerData.Symbol).SendAsync("ReceiveTickerUpdate", tickerData);
+            _logger.LogInformation($"[BinanceStreamHostedService] Inviato aggiornamento ticker per {tickerData.Symbol} al gruppo SignalR.");
 
             // TODO: Questa è la logica dove dovresti implementare l'invio di messaggi Telegram per utente
             // Ogni utente potrebbe avere le proprie soglie di notifica.

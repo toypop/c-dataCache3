@@ -742,7 +742,7 @@
         // ====================================================================
 
         function updateActiveTickersCount() {
-            document.getElementById('activeTickers').textContent = subscribedSymbols.size;
+            document.getElementById('activeTickers').textContent = subscribedSymbols.length;
         }
 
         function updateLastUpdateTime() {
@@ -830,10 +830,8 @@
         // --- FUNZIONI DI PERSISTENZA DATI (localStorage) ---
         // ====================================================================
 
-        function saveCryptoPercentages() {
-            localStorage.setItem('cryptoPercentages', JSON.stringify(cryptoPercentages));
-        }
-
+        // Funzioni per la persistenza di cryptoPercentages, selectedKlineIntervals e isBalanceObscured
+        // rimangono intatte come richiesto.
         function saveCryptoPercentages() {
             localStorage.setItem('cryptoPercentages', JSON.stringify(cryptoPercentages));
         }
@@ -1092,67 +1090,86 @@
         });
 
         // Nuovo listener per ricevere la lista aggiornata dei ticker sottoscritti dall'utente
-        connection.on("ReceiveSubscribedTickers", (symbols) => {
-            console.log("ReceiveSubscribedTickers received:", symbols);
-            subscribedSymbols = symbols; // Aggiorna la variabile globale
+        connection.on("ReceiveSubscribedTickers", (tickers) => {
+            console.log("[SignalR] ReceiveSubscribedTickers received:", tickers);
+            // subscribedSymbols ora è un array di oggetti { Symbol, Price }
+            subscribedSymbols = tickers.map(t => t.symbol); // Aggiorna la variabile globale con solo i simboli
             updateActiveTickersCount();
-            renderSubscribedTickers(); // Ridisegna i ticker basandosi sulla lista aggiornata
+            renderSubscribedTickers(tickers); // Passa l'intera lista di oggetti alla funzione di rendering
+            console.log("[UI Update] Subscribed tickers rendered.");
         });
 
         // Funzione per renderizzare i ticker sottoscritti
-        function renderSubscribedTickers() {
+        // Ora accetta un array di oggetti ticker con Symbol e Price
+        function renderSubscribedTickers(tickersWithPrices) {
+            console.log("[renderSubscribedTickers] Starting render with data:", tickersWithPrices);
             tickerList.innerHTML = ''; // Pulisci la dashboard attuale
 
-            if (subscribedSymbols.length === 0) {
+            if (tickersWithPrices.length === 0) {
+                console.log("[renderSubscribedTickers] No tickers to display. Showing placeholder.");
                 tickerList.innerHTML = '<div class="loading-spinner">Nessun ticker visualizzato. Sottoscrivi un ticker.</div>';
                 return;
             }
 
-            subscribedSymbols.forEach(symbol => {
+            tickersWithPrices.forEach(tickerData => {
+                const symbol = tickerData.symbol;
+                const initialPrice = tickerData.price;
+                console.log(`[renderSubscribedTickers] Processing symbol: ${symbol}, initial price: ${initialPrice}`);
+
                 let tickerElement = document.createElement('div');
                 tickerElement.id = `${symbol}_display`;
                 tickerElement.className = 'ticker-card fade-in';
                 tickerElement.innerHTML = `
                     <div class="ticker-symbol">${symbol}</div>
-                    <div class="ticker-price">Loading...</div>
+                    <div class="ticker-price">${initialPrice !== 0 ? `$${initialPrice.toFixed(2)}` : 'Loading...'}</div>
                     <div class="decline-percentage" id="${symbol}_decline_percentage"></div>
                     <div class="kline-info" id="${symbol}_kline_display"></div>
                 `;
                 tickerList.appendChild(tickerElement);
+                console.log(`[renderSubscribedTickers] Appended ticker card for ${symbol}.`);
 
                 // Applica le impostazioni salvate (percentuale e intervallo kline)
                 if (cryptoPercentages[symbol] !== undefined) {
                     document.getElementById(`${symbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[symbol]}%`;
+                    console.log(`[renderSubscribedTickers] Applied saved percentage for ${symbol}: ${cryptoPercentages[symbol]}%`);
                 } else {
                     document.getElementById(`${symbol}_decline_percentage`).textContent = `-`;
+                    console.log(`[renderSubscribedTickers] No saved percentage for ${symbol}.`);
                 }
 
                 const initialKlineInterval = selectedKlineIntervals[symbol];
                 if (initialKlineInterval) {
+                    console.log(`[renderSubscribedTickers] Requesting initial Kline data for ${symbol} with interval: ${initialKlineInterval}`);
                     // Richiedi i dati Kline iniziali per i ticker già sottoscritti
                     connection.invoke("GetKlineData", symbol, initialKlineInterval).then(klineData => {
                         const klineDisplayElement = document.getElementById(`${symbol}_kline_display`);
-                        if (klineDisplayElement && klineData) {
-                            const intervalDisplayFormatted = intervalMap[initialKlineInterval] || initialKlineInterval;
-                            klineDisplayElement.innerHTML = `
-                                <strong>TimeFrame (${intervalDisplayFormatted})</strong><br>
-                                Open: $${klineData.openPrice.toFixed(2)}<br>
-                                Close: $${klineData.closePrice.toFixed(2)}
-                            `;
-                        } else if (klineDisplayElement) {
-                            klineDisplayElement.innerHTML = `<strong>TimeFrame:</strong> Dati non disponibili`;
+                        if (klineDisplayElement) {
+                            if (klineData) {
+                                const intervalDisplayFormatted = intervalMap[initialKlineInterval] || initialKlineInterval;
+                                klineDisplayElement.innerHTML = `
+                                    <strong>TimeFrame (${intervalDisplayFormatted})</strong><br>
+                                    Open: $${klineData.openPrice.toFixed(2)}<br>
+                                    Close: $${klineData.closePrice.toFixed(2)}
+                                `;
+                                console.log(`[renderSubscribedTickers] Updated Kline display for ${symbol} with data.`);
+                            } else {
+                                klineDisplayElement.innerHTML = `<strong>TimeFrame:</strong> Dati non disponibili`;
+                                console.log(`[renderSubscribedTickers] Kline data not available for ${symbol}.`);
+                            }
                         }
                     }).catch(err => {
-                        console.error(`Errore nel recupero dati Kline iniziali per ${symbol} ${initialKlineInterval}:`, err);
+                        console.error(`[renderSubscribedTickers] Error fetching initial Kline data for ${symbol} ${initialKlineInterval}:`, err);
                     });
                 } else {
                     document.getElementById(`${symbol}_kline_display`).innerHTML = `Seleziona un intervallo e clicca "Visualizza Timeframe selezionato"`;
+                    console.log(`[renderSubscribedTickers] No initial Kline interval selected for ${symbol}.`);
                 }
             });
         }
 
         // Chiudi il modale quando si clicca sul pulsante di chiusura o sull'overlay
         closeModalButton.addEventListener('click', function() {
+            console.log("[UI Event] Closing settings modal.");
             settingsModal.classList.remove('show');
         });
 

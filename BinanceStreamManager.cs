@@ -329,11 +329,11 @@ namespace BinanceDataCacheApp
                     tick.PriceChangePercent
                 );
                 _cache.SetTickerData(tickerData);
-                _logger?.LogDebug($"Ticker aggiornato: {tick.Symbol} = ${tick.LastPrice}");
+                _logger?.LogInformation($"[BinanceStreamManager] Ticker aggiornato e cachato: {tick.Symbol} = ${tick.LastPrice}");
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Errore nel processare aggiornamento ticker");
+                _logger?.LogError(ex, "[BinanceStreamManager] Errore nel processare aggiornamento ticker");
             }
         }
 
@@ -355,12 +355,12 @@ namespace BinanceDataCacheApp
                     kline.Final
                 );
                 _cache.SetKlineData(klineData);
-                _logger?.LogDebug($"Kline aggiornata: {klineEvent.Symbol} {kline.Interval} - " +
+                _logger?.LogInformation($"[BinanceStreamManager] Kline aggiornata e cachata: {klineEvent.Symbol} {kline.Interval} - " +
                                  $"Close: ${kline.ClosePrice} (Final: {kline.Final})");
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Errore nel processare aggiornamento kline");
+                _logger?.LogError(ex, "[BinanceStreamManager] Errore nel processare aggiornamento kline");
             }
         }
 
