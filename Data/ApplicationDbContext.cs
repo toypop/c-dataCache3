@@ -16,6 +16,7 @@ namespace BinanceDataCacheApp.Data
         public DbSet<BotConfiguration> BotConfigurations { get; set; } = default!; // Aggiunto = default!
         public DbSet<TelegramKey> TelegramKeys { get; set; } = default!; // Aggiunto per Telegram Keys
         public DbSet<UserSubscribedTicker> UserSubscribedTickers { get; set; } = default!; // Aggiunto per i ticker sottoscritti dagli utenti
+        public DbSet<UserTickerSetting> UserTickerSettings { get; set; } = default!; // Nuovo DbSet per le impostazioni dei ticker
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -41,6 +42,13 @@ namespace BinanceDataCacheApp.Data
                 .HasOne(ust => ust.User)
                 .WithMany(u => u.UserSubscribedTickers)
                 .HasForeignKey(ust => ust.UserId);
+
+            // Configurazione della relazione per UserTickerSetting
+            modelBuilder.Entity<UserTickerSetting>()
+                .HasOne(uts => uts.UserSubscribedTicker)
+                .WithMany(ust => ust.UserTickerSettings)
+                .HasForeignKey(uts => uts.UserSubscribedTickerId)
+                .OnDelete(DeleteBehavior.Cascade); // Configura la cancellazione a cascata
         }
     }
 }

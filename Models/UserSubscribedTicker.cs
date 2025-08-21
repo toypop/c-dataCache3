@@ -21,5 +21,8 @@ namespace BinanceDataCacheApp.Models
         // Navigation property
         [ForeignKey("UserId")]
         public User User { get; set; }
+
+        // New navigation property for UserTickerSettings
+        public ICollection<UserTickerSetting> UserTickerSettings { get; set; }
     }
 }

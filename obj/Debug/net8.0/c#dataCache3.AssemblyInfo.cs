@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("c#dataCache3")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+17040c3497603d74d6807cf6b77e6a16581a1809")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e57d69aeb5f44f852d06dd07bfb9d1c2d0cdf3c6")]
 [assembly: System.Reflection.AssemblyProductAttribute("c#dataCache3")]
 [assembly: System.Reflection.AssemblyTitleAttribute("c#dataCache3")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

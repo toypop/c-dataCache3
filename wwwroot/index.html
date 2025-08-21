@@ -719,8 +719,6 @@
 
         // Variabili di Stato Globali
         let isBalanceObscured = false;
-        const cryptoPercentages = {};
-        const selectedKlineIntervals = {};
         let subscribedSymbols = []; // Ora sarà popolato dal server
 
         // Dati Costanti
@@ -832,30 +830,7 @@
         // --- FUNZIONI DI PERSISTENZA DATI (localStorage) ---
         // ====================================================================
 
-        // Funzioni per la persistenza di cryptoPercentages, selectedKlineIntervals e isBalanceObscured
-        // rimangono intatte come richiesto.
-        function saveCryptoPercentages() {
-            localStorage.setItem('cryptoPercentages', JSON.stringify(cryptoPercentages));
-        }
-
-        function loadCryptoPercentages() {
-            const storedPercentages = localStorage.getItem('cryptoPercentages');
-            if (storedPercentages) {
-                Object.assign(cryptoPercentages, JSON.parse(storedPercentages));
-            }
-        }
-
-        function saveSelectedKlineIntervals() {
-            localStorage.setItem('selectedKlineIntervals', JSON.stringify(selectedKlineIntervals));
-        }
-
-        function loadSelectedKlineIntervals() {
-            const storedIntervals = localStorage.getItem('selectedKlineIntervals');
-            if (storedIntervals) {
-                Object.assign(selectedKlineIntervals, JSON.parse(storedIntervals));
-            }
-        }
-
+        // Funzioni per la persistenza di isBalanceObscured (le altre sono state rimosse)
         function saveBalanceObscurityState() {
             localStorage.setItem('isBalanceObscured', isBalanceObscured);
         }
@@ -922,11 +897,25 @@
             }
         }
         
-        function updateSettingsModal(symbol) {
+        async function updateSettingsModal(symbol) {
             currentSymbolSpan.innerText = symbol;
-            declinePercentageInput.value = cryptoPercentages[symbol] || '';
-
-            modalKlineIntervalSelect.value = selectedKlineIntervals[symbol] || "OneMinute"; // Default a 1m se non salvato
+            
+            try {
+                const settings = await connection.invoke("GetTickerSettingsForSymbol", symbol);
+                if (settings) {
+                    declinePercentageInput.value = settings.declinePercentage;
+                    modalKlineIntervalSelect.value = settings.selectedKlineInterval;
+                } else {
+                    // Se non ci sono impostazioni salvate, usa i valori di default
+                    declinePercentageInput.value = 0;
+                    modalKlineIntervalSelect.value = "OneMinute";
+                }
+            } catch (err) {
+                console.error(`Errore nel recupero delle impostazioni per ${symbol}:`, err);
+                showSubscriptionMessage(`Errore nel caricamento delle impostazioni per ${symbol}.`, 'error');
+                declinePercentageInput.value = 0;
+                modalKlineIntervalSelect.value = "OneMinute";
+            }
             settingsModal.classList.add('show');
         }
 
@@ -1095,7 +1084,7 @@
         // Nuovo listener per ricevere la lista aggiornata dei ticker sottoscritti dall'utente
         connection.on("ReceiveSubscribedTickers", (tickers) => {
             console.log("[SignalR] ReceiveSubscribedTickers received:", tickers);
-            // subscribedSymbols ora è un array di oggetti { Symbol, Price }
+            // subscribedSymbols ora è un array di oggetti { Symbol, Price, DeclinePercentage, SelectedKlineInterval }
             subscribedSymbols = tickers.map(t => t.symbol); // Aggiorna la variabile globale con solo i simboli
             updateActiveTickersCount();
             renderSubscribedTickers(tickers); // Passa l'intera lista di oggetti alla funzione di rendering
@@ -1103,7 +1092,7 @@
         });
 
         // Funzione per renderizzare i ticker sottoscritti
-        // Ora accetta un array di oggetti ticker con Symbol e Price
+        // Ora accetta un array di oggetti ticker con Symbol, Price, DeclinePercentage, SelectedKlineInterval
         function renderSubscribedTickers(tickersWithPrices) {
             console.log("[renderSubscribedTickers] Starting render with data:", tickersWithPrices);
             tickerList.innerHTML = ''; // Pulisci la dashboard attuale
@@ -1117,7 +1106,10 @@
             tickersWithPrices.forEach(tickerData => {
                 const symbol = tickerData.symbol;
                 const initialPrice = tickerData.price;
-                console.log(`[renderSubscribedTickers] Processing symbol: ${symbol}, initial price: ${initialPrice}`);
+                const declinePercentage = tickerData.declinePercentage;
+                const selectedKlineInterval = tickerData.selectedKlineInterval;
+
+                console.log(`[renderSubscribedTickers] Processing symbol: ${symbol}, initial price: ${initialPrice}, decline: ${declinePercentage}, kline: ${selectedKlineInterval}`);
 
                 let tickerElement = document.createElement('div');
                 tickerElement.id = `${symbol}_display`;
@@ -1125,30 +1117,20 @@
                 tickerElement.innerHTML = `
                     <div class="ticker-symbol">${symbol}</div>
                     <div class="ticker-price">${initialPrice !== 0 ? `$${initialPrice.toFixed(2)}` : 'Loading...'}</div>
-                    <div class="decline-percentage" id="${symbol}_decline_percentage"></div>
+                    <div class="decline-percentage" id="${symbol}_decline_percentage">Discesa: ${declinePercentage}%</div>
                     <div class="kline-info" id="${symbol}_kline_display"></div>
                 `;
                 tickerList.appendChild(tickerElement);
                 console.log(`[renderSubscribedTickers] Appended ticker card for ${symbol}.`);
 
-                // Applica le impostazioni salvate (percentuale e intervallo kline)
-                if (cryptoPercentages[symbol] !== undefined) {
-                    document.getElementById(`${symbol}_decline_percentage`).textContent = `Discesa: ${cryptoPercentages[symbol]}%`;
-                    console.log(`[renderSubscribedTickers] Applied saved percentage for ${symbol}: ${cryptoPercentages[symbol]}%`);
-                } else {
-                    document.getElementById(`${symbol}_decline_percentage`).textContent = `-`;
-                    console.log(`[renderSubscribedTickers] No saved percentage for ${symbol}.`);
-                }
-
-                const initialKlineInterval = selectedKlineIntervals[symbol];
-                if (initialKlineInterval) {
-                    console.log(`[renderSubscribedTickers] Requesting initial Kline data for ${symbol} with interval: ${initialKlineInterval}`);
-                    // Richiedi i dati Kline iniziali per i ticker già sottoscritti
-                    connection.invoke("GetKlineData", symbol, initialKlineInterval).then(klineData => {
+                // Richiedi i dati Kline iniziali per i ticker già sottoscritti
+                if (selectedKlineInterval) {
+                    console.log(`[renderSubscribedTickers] Requesting initial Kline data for ${symbol} with interval: ${selectedKlineInterval}`);
+                    connection.invoke("GetKlineData", symbol, selectedKlineInterval).then(klineData => {
                         const klineDisplayElement = document.getElementById(`${symbol}_kline_display`);
                         if (klineDisplayElement) {
                             if (klineData) {
-                                const intervalDisplayFormatted = intervalMap[initialKlineInterval] || initialKlineInterval;
+                                const intervalDisplayFormatted = intervalMap[selectedKlineInterval] || selectedKlineInterval;
                                 klineDisplayElement.innerHTML = `
                                     <strong>TimeFrame (${intervalDisplayFormatted})</strong><br>
                                     Open: $${klineData.openPrice.toFixed(2)}<br>
@@ -1161,7 +1143,7 @@
                             }
                         }
                     }).catch(err => {
-                        console.error(`[renderSubscribedTickers] Error fetching initial Kline data for ${symbol} ${initialKlineInterval}:`, err);
+                        console.error(`[renderSubscribedTickers] Error fetching initial Kline data for ${symbol} ${selectedKlineInterval}:`, err);
                     });
                 } else {
                     document.getElementById(`${symbol}_kline_display`).innerHTML = `Seleziona un intervallo e clicca "Visualizza Timeframe selezionato"`;
@@ -1183,21 +1165,29 @@
         });
 
         // Logica per il pulsante Salva Percentuale nel modale
-        savePercentageButton.addEventListener('click', () => {
+        savePercentageButton.addEventListener('click', async () => {
             const symbol = document.getElementById('currentSymbol').innerText;
             const percentage = parseFloat(declinePercentageInput.value);
+            const klineInterval = modalKlineIntervalSelect.value; // Get current kline interval from modal
 
             if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
-                cryptoPercentages[symbol] = percentage;
-                saveCryptoPercentages();
-                showSubscriptionMessage(`Percentuale di discesa del ${percentage}% salvata per ${symbol}.`, 'success');
-                settingsModal.classList.remove('show');
+                try {
+                    const success = await connection.invoke("SaveTickerSettings", symbol, percentage, klineInterval);
+                    if (success) {
+                        showSubscriptionMessage(`Percentuale di discesa del ${percentage}% salvata per ${symbol}.`, 'success');
+                        settingsModal.classList.remove('show');
 
-                const percentageDisplay = document.getElementById(`${symbol}_decline_percentage`);
-                if (percentageDisplay) {
-                    percentageDisplay.textContent = `Discesa: ${percentage}%`;
+                        const percentageDisplay = document.getElementById(`${symbol}_decline_percentage`);
+                        if (percentageDisplay) {
+                            percentageDisplay.textContent = `Discesa: ${percentage}%`;
+                        }
+                    } else {
+                        showSubscriptionMessage(`Errore durante il salvataggio della percentuale per ${symbol}.`, 'error');
+                    }
+                } catch (err) {
+                    console.error(`Errore SignalR durante il salvataggio della percentuale per ${symbol}:`, err);
+                    showSubscriptionMessage(`Errore di comunicazione con il server durante il salvataggio della percentuale per ${symbol}.`, 'error');
                 }
-
             } else {
                 showSubscriptionMessage('Inserisci una percentuale valida (0-100).', 'error');
             }
@@ -1207,26 +1197,30 @@
         showSelectedKlineButton.addEventListener('click', async () => {
             const symbol = document.getElementById('currentSymbol').innerText;
             const interval = modalKlineIntervalSelect.value;
+            const percentage = parseFloat(declinePercentageInput.value); // Get current percentage from modal
 
             try {
-                const klineData = await connection.invoke("GetKlineData", symbol, interval);
-                const klineDisplayElement = document.getElementById(`${symbol}_kline_display`);
+                const success = await connection.invoke("SaveTickerSettings", symbol, percentage, interval);
+                if (success) {
+                    const klineData = await connection.invoke("GetKlineData", symbol, interval);
+                    const klineDisplayElement = document.getElementById(`${symbol}_kline_display`);
 
-                if (klineDisplayElement) {
-                    if (klineData) {
-                        const intervalDisplayFormatted = intervalMap[interval] || interval;
-                        klineDisplayElement.innerHTML = `
-                            <strong>TimeFrame (${intervalDisplayFormatted})</strong><br>
-                            Open: $${klineData.openPrice.toFixed(2)}<br>
-                            Close: $${klineData.closePrice.toFixed(2)}
-                        `;
-                        selectedKlineIntervals[symbol] = interval;
-                        saveSelectedKlineIntervals();
-                        showSubscriptionMessage(`TimeFrame ${intervalDisplayFormatted} visualizzati per ${symbol}.`, 'info');
-                    } else {
-                        klineDisplayElement.innerHTML = `<strong>TimeFrame:</strong> Dati non disponibili`;
-                        showSubscriptionMessage(`TimeFrame per ${symbol} - ${intervalMap[interval] || interval} non disponibili.`, 'warning');
+                    if (klineDisplayElement) {
+                        if (klineData) {
+                            const intervalDisplayFormatted = intervalMap[interval] || interval;
+                            klineDisplayElement.innerHTML = `
+                                <strong>TimeFrame (${intervalDisplayFormatted})</strong><br>
+                                Open: $${klineData.openPrice.toFixed(2)}<br>
+                                Close: $${klineData.closePrice.toFixed(2)}
+                            `;
+                            showSubscriptionMessage(`TimeFrame ${intervalDisplayFormatted} visualizzati per ${symbol}.`, 'info');
+                        } else {
+                            klineDisplayElement.innerHTML = `<strong>TimeFrame:</strong> Dati non disponibili`;
+                            showSubscriptionMessage(`TimeFrame per ${symbol} - ${intervalMap[interval] || interval} non disponibili.`, 'warning');
+                        }
                     }
+                } else {
+                    showSubscriptionMessage(`Errore durante il salvataggio del TimeFrame per ${symbol}.`, 'error');
                 }
             } catch (err) {
                 console.error(`Errore durante il recupero del Timeframe per ${symbol} ${interval}:`, err);
@@ -1299,8 +1293,6 @@
                 console.log("SignalR Connected.");
 
                 // Carica e inizializza i dati persistenti (non più subscribedSymbols da localStorage)
-                loadCryptoPercentages();
-                loadSelectedKlineIntervals();
                 loadBalanceObscurityState();
 
                 // Popola UI in base ai dati caricati

@@ -339,7 +339,19 @@ namespace BinanceDataCacheApp
                 };
                 _dbContext.UserSubscribedTickers.Add(newSubscription);
                 await _dbContext.SaveChangesAsync();
-                _logger.LogInformation($"[TickerHub] Sottoscrizione DB salvata per {symbol} per utente {user.UserName}.");
+                _logger.LogInformation($"[TickerHub] Sottoscrizione DB salvata per {symbol} per utente {user.UserName}. ID Sottoscrizione: {newSubscription.Id}");
+
+                // Crea e salva le impostazioni di default per il nuovo ticker sottoscritto
+                var defaultTickerSetting = new UserTickerSetting
+                {
+                    UserSubscribedTickerId = newSubscription.Id,
+                    DeclinePercentage = 0m, // Default value
+                    SelectedKlineInterval = KlineInterval.OneMinute.ToString(), // Default value
+                    LastModifiedAt = DateTime.UtcNow
+                };
+                _dbContext.UserTickerSettings.Add(defaultTickerSetting);
+                await _dbContext.SaveChangesAsync();
+                _logger.LogInformation($"[TickerHub] Impostazioni di default salvate per {symbol} (UserSubscribedTickerId: {newSubscription.Id}).");
 
                 // Avvia lo stream Binance se non è già attivo per questo simbolo (gestito dal manager)
                 _logger.LogInformation($"[TickerHub] Tentativo di avviare ticker stream per {symbol} con BinanceStreamManager.");
@@ -443,22 +455,117 @@ namespace BinanceDataCacheApp
 
             var subscribedTickers = await _dbContext.UserSubscribedTickers
                 .Where(ust => ust.UserId == user.Id)
-                .Select(ust => new { ust.Symbol }) // Seleziona solo il simbolo inizialmente
+                .Include(ust => ust.UserTickerSettings) // Include le impostazioni del ticker
+                .Select(ust => new
+                {
+                    ust.Symbol,
+                    Settings = ust.UserTickerSettings.FirstOrDefault() // Prendi la prima (o unica) impostazione
+                })
                 .ToListAsync();
 
-            var tickersWithPrices = new List<object>();
+            var tickersWithPricesAndSettings = new List<object>();
             foreach (var subscribedTicker in subscribedTickers)
             {
                 var tickerData = _cache.GetTickerData(subscribedTicker.Symbol);
-                tickersWithPrices.Add(new
+                tickersWithPricesAndSettings.Add(new
                 {
                     Symbol = subscribedTicker.Symbol,
-                    Price = tickerData?.Price ?? 0m // Invia il prezzo dalla cache, 0 se non disponibile
+                    Price = tickerData?.Price ?? 0m, // Invia il prezzo dalla cache, 0 se non disponibile
+                    DeclinePercentage = subscribedTicker.Settings?.DeclinePercentage ?? 0m, // Invia la percentuale di discesa
+                    SelectedKlineInterval = subscribedTicker.Settings?.SelectedKlineInterval ?? KlineInterval.OneMinute.ToString() // Invia l'intervallo Kline
                 });
             }
 
-            _logger.LogInformation($"Invio ticker sottoscritti a {user.UserName}: {string.Join(", ", tickersWithPrices.Select(t => ((dynamic)t).Symbol))}");
-            await Clients.Caller.SendAsync("ReceiveSubscribedTickers", tickersWithPrices);
+            _logger.LogInformation($"Invio ticker sottoscritti a {user.UserName}: {string.Join(", ", tickersWithPricesAndSettings.Select(t => ((dynamic)t).Symbol))}");
+            await Clients.Caller.SendAsync("ReceiveSubscribedTickers", tickersWithPricesAndSettings);
+        }
+
+        /// <summary>
+        /// Salva le impostazioni specifiche (percentuale di discesa, intervallo Kline) per un ticker sottoscritto dall'utente.
+        /// </summary>
+        /// <param name="symbol">Il simbolo del ticker.</param>
+        /// <param name="declinePercentage">La percentuale di discesa per le notifiche.</param>
+        /// <param name="klineInterval">L'intervallo Kline selezionato.</param>
+        /// <returns>True se le impostazioni sono state salvate con successo, altrimenti False.</returns>
+        public async Task<bool> SaveTickerSettings(string symbol, decimal declinePercentage, string klineInterval)
+        {
+            var user = await GetCurrentUserAsync();
+            if (user == null) return false;
+
+            var userSubscribedTicker = await _dbContext.UserSubscribedTickers
+                .Where(ust => ust.UserId == user.Id && ust.Symbol == symbol)
+                .Include(ust => ust.UserTickerSettings)
+                .FirstOrDefaultAsync();
+
+            if (userSubscribedTicker == null)
+            {
+                _logger.LogWarning($"[TickerHub] Tentativo di salvare impostazioni per ticker non sottoscritto: {symbol} per utente {user.UserName}.");
+                return false;
+            }
+
+            try
+            {
+                var setting = userSubscribedTicker.UserTickerSettings.FirstOrDefault();
+                if (setting == null)
+                {
+                    // Questo caso non dovrebbe verificarsi se la logica di SubscribeToTicker è corretta,
+                    // ma lo gestiamo per robustezza.
+                    setting = new UserTickerSetting
+                    {
+                        UserSubscribedTickerId = userSubscribedTicker.Id,
+                        DeclinePercentage = declinePercentage,
+                        SelectedKlineInterval = klineInterval,
+                        LastModifiedAt = DateTime.UtcNow
+                    };
+                    _dbContext.UserTickerSettings.Add(setting);
+                    _logger.LogInformation($"[TickerHub] Creata nuova impostazione per {symbol} (UserSubscribedTickerId: {userSubscribedTicker.Id}).");
+                }
+                else
+                {
+                    setting.DeclinePercentage = declinePercentage;
+                    setting.SelectedKlineInterval = klineInterval;
+                    setting.LastModifiedAt = DateTime.UtcNow;
+                    _dbContext.UserTickerSettings.Update(setting);
+                    _logger.LogInformation($"[TickerHub] Aggiornata impostazione per {symbol} (UserSubscribedTickerId: {userSubscribedTicker.Id}).");
+                }
+
+                await _dbContext.SaveChangesAsync();
+                _logger.LogInformation($"[TickerHub] Impostazioni ticker salvate per {symbol} (Decline: {declinePercentage}%, Kline: {klineInterval}) per utente {user.UserName}.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"[TickerHub] Errore durante il salvataggio delle impostazioni per {symbol} per l'utente {user.UserName}.");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Recupera le impostazioni specifiche (percentuale di discesa, intervallo Kline) per un ticker sottoscritto.
+        /// </summary>
+        /// <param name="symbol">Il simbolo del ticker.</param>
+        /// <returns>Un oggetto anonimo con le impostazioni, o null se non trovate.</returns>
+        public async Task<object> GetTickerSettingsForSymbol(string symbol)
+        {
+            var user = await GetCurrentUserAsync();
+            if (user == null) return null;
+
+            var userSubscribedTicker = await _dbContext.UserSubscribedTickers
+                .Where(ust => ust.UserId == user.Id && ust.Symbol == symbol)
+                .Include(ust => ust.UserTickerSettings)
+                .FirstOrDefaultAsync();
+
+            if (userSubscribedTicker?.UserTickerSettings.FirstOrDefault() is UserTickerSetting settings)
+            {
+                _logger.LogInformation($"[TickerHub] Recuperate impostazioni per {symbol} per utente {user.UserName}.");
+                return new
+                {
+                    DeclinePercentage = settings.DeclinePercentage,
+                    SelectedKlineInterval = settings.SelectedKlineInterval
+                };
+            }
+            _logger.LogInformation($"[TickerHub] Nessuna impostazione trovata per {symbol} per utente {user.UserName}.");
+            return null;
         }
 
         // Nuovo metodo per ottenere i dati Kline per un simbolo e intervallo specifici
